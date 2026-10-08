@@ -1,0 +1,33 @@
+{
+  "title": "Berserk engine exploration and decision records",
+  "date": "2026-10-08",
+  "revision_note": "Accepted Phaser + TypeScript and deliberate initial learning pace; added Records 007 and 008; aligned current context and agent workflow",
+  "evidence": "documentation and source review; prototypes pending",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "2026a5ac16c9e1818689e1c45399333488d6d3e37ed9dfdf0914855d536777bf",
+      "bytes": 2119
+    },
+    {
+      "path": "agent-workflow.md",
+      "sha256": "e471bf6dc8988d029e1920b258389a45446171cb57ec6821a5caa9d752eb6a03",
+      "bytes": 8676
+    },
+    {
+      "path": "decision-records.md",
+      "sha256": "91d5b4202d1c820bc52a6c5512f6727de6d241f6a90272aad880411fa4e36c72",
+      "bytes": 15011
+    },
+    {
+      "path": "engine-research.md",
+      "sha256": "585a3364817dcc8f5ea9edf8e3bba796f5b367d2ebe6dab562928ac162f6efd4",
+      "bytes": 26611
+    },
+    {
+      "path": "project-context.md",
+      "sha256": "4bfc326adbeda1581f6b69635dc1dfc609bae0755a4e41fb845dbbea26e24caa",
+      "bytes": 5218
+    }
+  ]
+}

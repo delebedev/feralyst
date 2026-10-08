@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    // Phaser 4.2.1 contains invalid declarations. Project code stays checked.
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
