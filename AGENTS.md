@@ -2,6 +2,7 @@
 
 - AI writes; Denis reads every authored line before merge.
 - Deliver complete, working outcomes in small or medium PRs.
+- Write PR bodies using the [template](.github/pull_request_template.md), including when using `gh`.
 - Keep one workstream. PRs are sequential or stacked by dependency.
 - Discuss novel design or behavior together. Routine scaffolding gets normal PR review.
 - Every line serves the current outcome. Finish the agreed slice before expanding it.
