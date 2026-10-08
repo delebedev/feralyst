@@ -13,8 +13,15 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open the local URL printed by Vite. `bun run build` checks TypeScript and
-builds the production page in `dist/`.
+Open the local URL printed by Vite. `bun run build` builds the production page
+in `dist/`.
+
+`bun run check` runs formatting, typed linting, TypeScript, tests and the build.
+CI runs the same command. Use `bun run format` to apply Oxfmt's formatting.
+The archived rules and design history are excluded from automatic formatting.
+`.editorconfig` sets two-space indentation and LF endings; the
+[Oxc editor extension](https://oxc.rs/docs/guide/usage/formatter/editors)
+supports formatting on save and lint diagnostics.
 
 `bun run battle` plays a scripted headless battle and prints each command's
 resolution events, followed by the outcome. The synthetic creatures move,
@@ -24,8 +31,8 @@ attack, assign a defender, take wounds and die across several turns.
 accepts movement, simple strikes, defender assignment and passing, returning
 the next state and events or a rejection. Combat requires an explicit dice
 source. `src/battle-harness.ts` supplies scripted dice, checks state invariants
-and records a replayable trace. `bun run test` checks TypeScript and runs the
-rule examples and complete battle scenarios.
+and records a replayable trace. `bun run test` runs the rule examples and
+complete battle scenarios; `bun run typecheck` checks TypeScript separately.
 
 This slice covers ordinary ground creatures without abilities. Recruitment,
 card-specific abilities, flying creatures and symbiotes are outside its scope.

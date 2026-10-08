@@ -38,19 +38,28 @@ type ActionBase = Readonly<{
 }>;
 
 export type MovementAction = ActionBase & Readonly<{ kind: "movement"; target: Cell }>;
-export type StrikeAction = ActionBase & Readonly<{
-  kind: "strike";
-  initialTarget: CardId;
-  target: CardId;
-  closeOnPayment: readonly CardId[];
-  rolls: Readonly<{ source: Die; responder: Die | null }> | null;
-  damage: Readonly<{ toTarget: number; toSource: number }> | null;
-}>;
+export type StrikeAction = ActionBase &
+  Readonly<{
+    kind: "strike";
+    initialTarget: CardId;
+    target: CardId;
+    closeOnPayment: readonly CardId[];
+    rolls: Readonly<{ source: Die; responder: Die | null }> | null;
+    damage: Readonly<{ toTarget: number; toSource: number }> | null;
+  }>;
 export type DefenderAction = ActionBase & Readonly<{ kind: "defender"; attack: ActionId }>;
 export type DestructionAction = ActionBase & Readonly<{ kind: "destruction" }>;
 export type Action = MovementAction | StrikeAction | DefenderAction | DestructionAction;
-export type Stage = "declaration" | "target" | "roll" | "result" | "calculation"
-  | "protection" | "wound" | "payment" | "ending";
+export type Stage =
+  | "declaration"
+  | "target"
+  | "roll"
+  | "result"
+  | "calculation"
+  | "protection"
+  | "wound"
+  | "payment"
+  | "ending";
 export type StackObject = Readonly<{ stage: Stage; action: ActionId }>;
 export type Outcome = Readonly<{ kind: "win"; winner: PlayerId }> | Readonly<{ kind: "draw" }>;
 
@@ -70,16 +79,38 @@ export type MatchState = Readonly<{
 }>;
 
 export type MoveCommand = Readonly<{ type: "move"; player: PlayerId; card: CardId; to: string }>;
-export type StrikeCommand = Readonly<{ type: "strike"; player: PlayerId; card: CardId; target: CardId }>;
+export type StrikeCommand = Readonly<{
+  type: "strike";
+  player: PlayerId;
+  card: CardId;
+  target: CardId;
+}>;
 export type DefenderCommand = Readonly<{ type: "defend"; player: PlayerId; card: CardId }>;
 export type PassCommand = Readonly<{ type: "pass"; player: PlayerId }>;
 export type Command = MoveCommand | StrikeCommand | DefenderCommand | PassCommand;
-export type Rejection = "battle-ended" | "unknown-player" | "unknown-card" | "not-controller"
-  | "not-active-player" | "not-main-phase" | "no-priority" | "stack-not-empty"
-  | "not-on-battlefield" | "card-closed" | "movement-exhausted" | "invalid-cell"
-  | "not-orthogonal-neighbor" | "cell-occupied" | "unknown-target" | "target-not-on-battlefield"
-  | "not-adjacent" | "not-inactive-player" | "no-defender-window" | "already-redirected"
-  | "defender-not-adjacent" | "preliminary-phase-unsupported";
+export type Rejection =
+  | "battle-ended"
+  | "unknown-player"
+  | "unknown-card"
+  | "not-controller"
+  | "not-active-player"
+  | "not-main-phase"
+  | "no-priority"
+  | "stack-not-empty"
+  | "not-on-battlefield"
+  | "card-closed"
+  | "movement-exhausted"
+  | "invalid-cell"
+  | "not-orthogonal-neighbor"
+  | "cell-occupied"
+  | "unknown-target"
+  | "target-not-on-battlefield"
+  | "not-adjacent"
+  | "not-inactive-player"
+  | "no-defender-window"
+  | "already-redirected"
+  | "defender-not-adjacent"
+  | "preliminary-phase-unsupported";
 
 export type EngineEvent =
   | Readonly<{ type: "declared"; action: Action }>

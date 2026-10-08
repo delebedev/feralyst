@@ -12,10 +12,12 @@ new Phaser.Game({
   },
   scene: {
     create(this: Phaser.Scene) {
-      this.add.text(160, 120, "Hello world!", {
-        fontSize: "28px",
-        color: "#f5f1e8",
-      }).setOrigin(0.5);
+      this.add
+        .text(160, 120, "Hello world!", {
+          fontSize: "28px",
+          color: "#f5f1e8",
+        })
+        .setOrigin(0.5);
     },
   },
 });
