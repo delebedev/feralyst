@@ -1,2 +1,0 @@
-{"id":"int-fbe6fe869ae11be511f7f8142e8a1fe4","kind":"field_change","created_at":"2026-10-08T20:42:28.917301Z","actor":"Denis Lebedev","issue_id":"feralyst-l8r","extra":{"field":"status","new_value":"open","old_value":"in_progress"}}
-{"id":"int-753dd6d95c2c033a2214ca0fbb0bcecb","kind":"field_change","created_at":"2026-10-08T20:45:30.041184Z","actor":"Denis Lebedev","issue_id":"feralyst-x1b","extra":{"field":"status","new_value":"open","old_value":"in_progress"}}

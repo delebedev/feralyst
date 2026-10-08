@@ -20,5 +20,7 @@ builds the production page in `dist/`.
 - [Working agreement](AGENTS.md)
 
 Work is tracked with [Beads](https://github.com/steveyegge/beads).
+After cloning, run `bd bootstrap` to restore issue history. Use `bd dolt pull`
+before changing shared issues and `bd dolt push` to publish changes.
 
 [MIT license](LICENSE).
