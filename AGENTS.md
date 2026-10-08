@@ -10,6 +10,8 @@
 - Keep reasons with substantive decisions. Evolve guidance from observed practice.
 - Push and merge only when Denis explicitly asks.
 
+For game rules, read the [English rulebook](docs/rules/rulebook.md), our source of truth.
+
 Before game design or implementation, read the seeded
 [project context](docs/seed/berserk-engine-exploration-2026-10-08/project-context.md)
 and [decision records](docs/seed/berserk-engine-exploration-2026-10-08/decision-records.md).
