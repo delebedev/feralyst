@@ -5,6 +5,11 @@
     "moduleResolution": "Bundler",
     "types": ["bun"],
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     // Phaser 4.2.1 contains invalid declarations. Project code stays checked.
     "skipLibCheck": true,
     "noEmit": true

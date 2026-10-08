@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import assert from "node:assert/strict";
 import { strikeDamage } from "./combat";
 import type { Die } from "./model";
 
@@ -53,12 +54,14 @@ const expected = [
     [1, 0],
     [0, 10],
   ],
-];
+] as const;
 const dice: Die[] = [1, 2, 3, 4, 5, 6];
 for (const source of dice) {
   for (const responder of dice) {
     test(`strike table: ${source} versus ${responder}`, () => {
-      const [toTarget, toSource] = expected[source - 1][responder - 1];
+      const pair = expected[source - 1]?.[responder - 1];
+      assert(pair);
+      const [toTarget, toSource] = pair;
       expect(strikeDamage(source, responder, [1, 2, 3], [10, 20, 30])).toEqual({
         toTarget,
         toSource,
@@ -66,9 +69,16 @@ for (const source of dice) {
     });
   }
 }
-test.each(dice)("a closed target does not respond to roll %i", (source) => {
+test.each([
+  [1, 1],
+  [2, 1],
+  [3, 1],
+  [4, 2],
+  [5, 2],
+  [6, 3],
+] satisfies [Die, number][])("a closed target does not respond to roll %i", (source, toTarget) => {
   expect(strikeDamage(source, null, [1, 2, 3], [10, 20, 30])).toEqual({
-    toTarget: [1, 1, 1, 2, 2, 3][source - 1],
+    toTarget,
     toSource: 0,
   });
 });

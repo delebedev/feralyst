@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
 import { BattleHarness } from "./battle-harness";
 import { demoPosition, playDemo } from "./battle-demo";
 import { applyCommand, createBattle } from "./engine";
@@ -81,8 +82,8 @@ describe("battle scenarios", () => {
   test("a closed target does not roll or counterstrike", () => {
     const battle = new BattleHarness(patchCard(duel(), "target", { status: "closed" }), [6]);
     battle.command(strike).resolveStack();
-    expect(battle.state.cards[0].wounds).toBe(0);
-    expect(battle.state.cards[1].wounds).toBe(5);
+    expect(battle.state.cards[0]).toMatchObject({ wounds: 0 });
+    expect(battle.state.cards[1]).toMatchObject({ wounds: 5 });
     battle.assertDiceConsumed();
   });
 
@@ -101,10 +102,10 @@ describe("battle scenarios", () => {
     battle
       .command({ type: "strike", player: "north", card: "fighter", target: "ward" })
       .resolveStack();
-    expect(battle.state.cards[0].wounds).toBe(0);
-    expect(battle.state.cards[2].location.zone).toBe("graveyard");
-    expect(battle.state.cards[2].controller).toBe("south");
-    expect(battle.state.cards[2].owner).toBe("south");
+    expect(battle.state.cards[0]).toMatchObject({ wounds: 0 });
+    expect(battle.state.cards[2]).toMatchObject({ location: { zone: "graveyard" } });
+    expect(battle.state.cards[2]).toMatchObject({ controller: "south" });
+    expect(battle.state.cards[2]).toMatchObject({ owner: "south" });
     expect(battle.state.outcome).toBeNull();
     battle.assertDiceConsumed();
   });
@@ -118,10 +119,11 @@ describe("battle scenarios", () => {
     expect(battle.state.outcome).toBeNull();
     battle.pass();
     const top = battle.state.stack[battle.state.stack.length - 1];
-    expect(battle.state.actions[top.action].kind).toBe("destruction");
+    assert(top);
+    expect(battle.state.actions[top.action]).toMatchObject({ kind: "destruction" });
     expect(battle.state.priorityPlayer).toBe("north");
     for (let stage = 0; stage < 4; stage++) battle.pass().pass();
-    expect(battle.state.cards[1].location.zone).toBe("graveyard");
+    expect(battle.state.cards[1]).toMatchObject({ location: { zone: "graveyard" } });
     expect(battle.state.outcome).toBeNull();
     battle.resolveStack();
     expect(battle.state.outcome).toEqual({ kind: "win", winner: "north" });
@@ -185,10 +187,10 @@ describe("battle scenarios", () => {
     expect(attack).toMatchObject({ kind: "strike", target: "ward" });
     battle.pass().pass();
     expect(battle.state.actions[1]).toMatchObject({ target: "guard", closeOnPayment: ["fighter"] });
-    expect(battle.state.cards[1].status).toBe("open");
+    expect(battle.state.cards[1]).toMatchObject({ status: "open" });
     battle.pass().pass();
     expect(battle.state.actions[1]).toMatchObject({ closeOnPayment: ["fighter", "guard"] });
-    expect(battle.state.cards[1].status).toBe("open");
+    expect(battle.state.cards[1]).toMatchObject({ status: "open" });
     battle.pass();
     const redirected = battle.state;
     expect(applyCommand(redirected, { type: "defend", player: "south", card: "guard" })).toEqual({
@@ -199,11 +201,11 @@ describe("battle scenarios", () => {
     battle.pass();
     for (let stage = 0; stage < 5; stage++) battle.pass().pass();
     expect(battle.state.cards[1]).toMatchObject({ status: "open", wounds: 3 });
-    expect(battle.state.cards[0].status).toBe("open");
-    expect(battle.state.cards[2].wounds).toBe(0);
+    expect(battle.state.cards[0]).toMatchObject({ status: "open" });
+    expect(battle.state.cards[2]).toMatchObject({ wounds: 0 });
     battle.resolveStack();
-    expect(battle.state.cards[0].status).toBe("closed");
-    expect(battle.state.cards[1].status).toBe("closed");
+    expect(battle.state.cards[0]).toMatchObject({ status: "closed" });
+    expect(battle.state.cards[1]).toMatchObject({ status: "closed" });
     expect(battle.state.outcome).toBeNull();
     battle.assertDiceConsumed();
   });
@@ -238,9 +240,9 @@ describe("battle scenarios", () => {
     resumed.pass().pass();
     expect(resumed.state.stack.map((object) => object.stage)).toEqual(["ending", "payment"]);
     expect(resumed.state.priorityPlayer).toBe("south");
-    expect(resumed.state.cards[1].location.zone).toBe("battlefield");
+    expect(resumed.state.cards[1]).toMatchObject({ location: { zone: "battlefield" } });
     resumed.resolveStack();
-    expect(resumed.state.cards[0].status).toBe("closed");
+    expect(resumed.state.cards[0]).toMatchObject({ status: "closed" });
     expect(resumed.state.outcome).toBeNull();
   });
 });

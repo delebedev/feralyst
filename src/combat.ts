@@ -18,7 +18,7 @@ const responding: readonly (readonly [Kind, Kind])[] = [
 
 function value(kind: Kind, profile: StrikeProfile): number {
   if (kind === "miss") return 0;
-  return profile[{ weak: 0, medium: 1, strong: 2 }[kind]];
+  return profile[({ weak: 0, medium: 1, strong: 2 } as const)[kind]];
 }
 
 // Strike Table (205.6); a non-fighting target uses the single-roll rule (205.4).
@@ -29,7 +29,7 @@ export function strikeDamage(
   attack: StrikeProfile,
   response: StrikeProfile,
 ) {
-  let kinds: readonly [Kind, Kind];
+  let kinds: readonly [Kind, Kind] | undefined;
   if (responder === null) {
     kinds = [source <= 3 ? "weak" : source <= 5 ? "medium" : "strong", "miss"];
   } else {
@@ -43,5 +43,6 @@ export function strikeDamage(
             ? ["weak", "miss"]
             : ["miss", "weak"];
   }
+  if (!kinds) throw new Error(`Strike table has no row for ${source} versus ${responder}`);
   return { toTarget: value(kinds[0], attack), toSource: value(kinds[1], response) };
 }

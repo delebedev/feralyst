@@ -124,11 +124,12 @@ function grantPriority(state: MatchState, player: PlayerId, events: EngineEvent[
     const survivors = state.players.filter((owner) =>
       state.cards.some((card) => card.controller === owner && inSquad(card)),
     );
+    const [winner] = survivors;
     const outcome =
       survivors.length === 2
         ? null
-        : survivors.length === 1
-          ? { kind: "win" as const, winner: survivors[0] }
+        : winner !== undefined
+          ? { kind: "win" as const, winner }
           : { kind: "draw" as const };
     if (outcome) {
       events.push({ type: "ended", outcome });
@@ -327,8 +328,9 @@ function readDie(rollDie: DiceSource | undefined): Die {
 }
 
 function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSource) {
-  const object = state.stack[state.stack.length - 1],
-    action = getAction(state, object.action);
+  const object = state.stack.at(-1);
+  if (!object) throw new Error("Cannot resolve an empty stack");
+  const action = getAction(state, object.action);
   state = { ...state, stack: state.stack.slice(0, -1) };
   if (object.stage !== "payment" && object.stage !== "ending" && !legal(state, action)) {
     events.push({ type: "cancelled", action: action.id });

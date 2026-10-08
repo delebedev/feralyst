@@ -58,9 +58,11 @@ export class BattleHarness {
 
   command(command: Command): this {
     const result = applyCommand(this.position, command, () => {
-      if (this.cursor === this.dice.length)
+      const value = this.dice[this.cursor];
+      if (value === undefined)
         throw new Error(`Scripted dice exhausted at roll ${this.cursor + 1}`);
-      return this.dice[this.cursor++];
+      this.cursor++;
+      return value;
     });
     if (!result.ok) throw new Error(`Rejected ${JSON.stringify(command)}: ${result.reason}`);
     assertPosition(result.state);

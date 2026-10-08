@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
 import { applyCommand, createBattle } from "./engine";
 import type { Command, CardInstance, MatchState, MoveCommand, Rejection } from "./model";
 
@@ -108,7 +109,7 @@ describe("ordinary movement", () => {
   test("spends the allowance over successive moves and rejects a third", () => {
     const first = completedMove(position());
     const second = completedMove(first, { ...command, to: "C1" });
-    expect(second.cards[0].movementMarkers).toBe(2);
+    expect(second.cards[0]).toMatchObject({ movementMarkers: 2 });
     expect(applyCommand(second, { ...command, to: "B1" })).toEqual({
       ok: false,
       reason: "movement-exhausted",
@@ -118,13 +119,12 @@ describe("ordinary movement", () => {
 
   test("uses control rather than ownership to permit movement", () => {
     const state = changeCard(position(), { owner: "south" });
-    expect(completedMove(state).cards[0].owner).toBe("south");
+    expect(completedMove(state).cards[0]).toMatchObject({ owner: "south" });
   });
 
   test.each(["A2", "C2", "B1", "B3"])("moves from B2 to orthogonal neighbor %s", (to) => {
-    expect(completedMove(position(), { ...command, to }).cards[0].location).toEqual({
-      zone: "battlefield",
-      cell: to,
+    expect(completedMove(position(), { ...command, to }).cards[0]).toMatchObject({
+      location: { zone: "battlefield", cell: to },
     });
   });
 
@@ -134,9 +134,8 @@ describe("ordinary movement", () => {
       location: { zone: "battlefield", cell: "B1" },
     });
     const state = freeze({ ...before, activePlayer: player, priorityPlayer: player });
-    expect(completedMove(state, { ...command, player, to: "B1′" }).cards[0].location).toEqual({
-      zone: "battlefield",
-      cell: "B1′",
+    expect(completedMove(state, { ...command, player, to: "B1′" }).cards[0]).toMatchObject({
+      location: { zone: "battlefield", cell: "B1′" },
     });
   });
 
@@ -265,7 +264,7 @@ describe("movement declaration and passing", () => {
       { stage: "ending", cell: "C2", markers: 1 },
     ] as const;
     for (const expected of stages) {
-      expect(state.stack[state.stack.length - 1].stage).toBe(expected.stage);
+      expect(state.stack.at(-1)).toMatchObject({ stage: expected.stage });
       const firstPass = passOnce(state);
       expect(firstPass.priorityPlayer).toBe("south");
       expect(firstPass.consecutivePasses).toBe(1);
@@ -275,9 +274,11 @@ describe("movement declaration and passing", () => {
       expect(resolved.priorityPlayer).toBe("north");
       expect(resolved.consecutivePasses).toBe(0);
       expect(resolved.stack.length).toBe(state.stack.length - 1);
-      expect(resolved.cards[0].location).toEqual({ zone: "battlefield", cell: expected.cell });
-      expect(resolved.cards[0].movementMarkers).toBe(expected.markers);
-      expect(resolved.cards[0].status).toBe("open");
+      expect(resolved.cards[0]).toMatchObject({
+        location: { zone: "battlefield", cell: expected.cell },
+      });
+      expect(resolved.cards[0]).toMatchObject({ movementMarkers: expected.markers });
+      expect(resolved.cards[0]).toMatchObject({ status: "open" });
       expect(resolved.phase).toBe("main");
       state = resolved;
     }
@@ -294,10 +295,10 @@ describe("movement declaration and passing", () => {
     });
     const paid = passPair(blocked);
     expect(paid.stack).toEqual([]);
-    expect(paid.cards[0].location).toEqual({ zone: "battlefield", cell: "B2" });
-    expect(paid.cards[0].movementMarkers).toBe(1);
-    expect(paid.cards[0].status).toBe("open");
-    expect(blocked.cards[0].movementMarkers).toBe(0);
+    expect(paid.cards[0]).toMatchObject({ location: { zone: "battlefield", cell: "B2" } });
+    expect(paid.cards[0]).toMatchObject({ movementMarkers: 1 });
+    expect(paid.cards[0]).toMatchObject({ status: "open" });
+    expect(blocked.cards[0]).toMatchObject({ movementMarkers: 0 });
     expect(paid.phase).toBe("main");
   });
 
@@ -399,14 +400,14 @@ describe("ability-free turn phases", () => {
     expect(main.phase).toBe("main");
     expect(main.activePlayer).toBe("south");
     const moved = completedMove(main, { type: "move", player: "south", card: "north-2", to: "E2" });
-    expect(moved.cards[1].location).toEqual({ zone: "battlefield", cell: "E2" });
-    expect(moved.cards[1].movementMarkers).toBe(1);
+    expect(moved.cards[1]).toMatchObject({ location: { zone: "battlefield", cell: "E2" } });
+    expect(moved.cards[1]).toMatchObject({ movementMarkers: 1 });
     const northInitial = passPair(passPair(moved));
     expect(northInitial.phase).toBe("initial");
     expect(northInitial.activePlayer).toBe("north");
     expect(northInitial.priorityPlayer).toBe("north");
     expect(northInitial.cards[0]).toMatchObject({ status: "open", movementMarkers: 0 });
-    expect(northInitial.cards[1].movementMarkers).toBe(1);
+    expect(northInitial.cards[1]).toMatchObject({ movementMarkers: 1 });
   });
 });
 
@@ -523,17 +524,21 @@ describe("battle construction", () => {
       cards: before.cards,
       activePlayer: before.activePlayer,
     };
+    const [card] = input.cards;
+    const [definition] = input.definitions;
+    assert(card);
+    assert(definition);
     expect(() => createBattle({ ...input, players: ["north", "north"] })).toThrow(
       "Invalid battle players",
     );
     expect(() => createBattle({ ...input, activePlayer: "outsider" })).toThrow(
       "Invalid battle players",
     );
-    expect(() => createBattle({ ...input, cards: [...input.cards, input.cards[0]] })).toThrow(
+    expect(() => createBattle({ ...input, cards: [...input.cards, card] })).toThrow(
       "Duplicate card:",
     );
     expect(() =>
-      createBattle({ ...input, definitions: [...input.definitions, input.definitions[0]] }),
+      createBattle({ ...input, definitions: [...input.definitions, definition] }),
     ).toThrow("Duplicate card definition");
     expect(() =>
       createBattle({ ...input, cards: changeCard(before, { definition: "missing" }).cards }),
@@ -554,12 +559,12 @@ describe("battle construction", () => {
       createBattle({ ...input, cards: changeCard(before, { wounds: 4 }).cards }),
     ).toThrow("Deployed creature has no life:");
     expect(() =>
-      createBattle({ ...input, definitions: [{ ...input.definitions[0], lifeAllowance: 0 }] }),
+      createBattle({ ...input, definitions: [{ ...definition, lifeAllowance: 0 }] }),
     ).toThrow("Invalid card definition:");
     expect(() =>
       createBattle({
         ...input,
-        definitions: [{ ...input.definitions[0], simpleStrike: [1, -1, 3] }],
+        definitions: [{ ...definition, simpleStrike: [1, -1, 3] }],
       }),
     ).toThrow("Invalid card definition:");
   });
