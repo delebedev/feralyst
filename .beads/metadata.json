@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "feralyst",
+  "project_id": "c2199b54-e8d0-4ff8-9b2d-81ef794affa4"
+}
