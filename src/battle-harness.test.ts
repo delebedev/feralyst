@@ -195,16 +195,26 @@ describe("scenario failures", () => {
     for (let stage = 0; stage < 2; stage++) battle.pass().pass();
     battle.pass();
     const before = battle.state;
-    expect(() => battle.pass()).toThrow("Scripted dice exhausted at roll 2");
-    expect(battle.state).toBe(before);
+    const trace = battle.trace;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(() => battle.pass()).toThrow("Scripted dice exhausted at roll 2");
+      expect(battle.state).toBe(before);
+      expect(battle.trace).toEqual(trace);
+      expect(() => battle.assertDiceConsumed()).toThrow("Unused scripted dice: 1");
+    }
   });
 
   test.each([0, 7, -1, 1.5, NaN, Infinity])("rejects invalid die value %s", (value) => {
-    const battle = new BattleHarness(duel(), [value]);
+    const battle = new BattleHarness(duel(), [value, 6, 1]);
     battle.command(strike).pass().pass().pass().pass().pass();
     const before = battle.state;
-    expect(() => battle.pass()).toThrow("Invalid die result");
-    expect(battle.state).toBe(before);
+    const trace = battle.trace;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect(() => battle.pass()).toThrow("Invalid die result");
+      expect(battle.state).toBe(before);
+      expect(battle.trace).toEqual(trace);
+      expect(() => battle.assertDiceConsumed()).toThrow("Unused scripted dice: 3");
+    }
   });
 
   test("unused dice expose a mistaken scenario script", () => {

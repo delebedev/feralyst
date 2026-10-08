@@ -43,14 +43,16 @@ export class BattleHarness {
   get trace(): readonly TraceEntry[] { return this.entries.slice(); }
 
   command(command: Command): this {
+    let cursor = this.cursor;
     const result = applyCommand(this.position, command, () => {
-      if (this.cursor === this.dice.length) throw new Error(`Scripted dice exhausted at roll ${this.cursor + 1}`);
-      return this.dice[this.cursor++];
+      if (cursor === this.dice.length) throw new Error(`Scripted dice exhausted at roll ${cursor + 1}`);
+      return this.dice[cursor++];
     });
     if (!result.ok) throw new Error(`Rejected ${JSON.stringify(command)}: ${result.reason}`);
     assertPosition(result.state);
     this.position = freeze(result.state);
     this.entries.push(freeze({ command, events: result.events, priority: result.state.priorityPlayer }));
+    this.cursor = cursor;
     return this;
   }
 
