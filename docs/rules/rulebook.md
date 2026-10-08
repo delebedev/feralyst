@@ -1,6 +1,6 @@
 # Feralyst rulebook
 
-This English edition is Feralyst's authoritative rules text. It translates the [archived *Berserk Online* expanded rules](https://web.archive.org/web/20131006081326/http://berserk.mail.ru/rashirennye_pravila.html), preserved in this repository as [original HTML](source/expanded-rules.html) with [provenance](source/provenance.json). The source identifies its copyright holder as © ООО БЕРСЕРК ОНЛАЙН. Rule numbers and inherited examples are retained. English wording awaits Denis's translation review. Notes explicitly marked **Translator's note** describe gaps or inconsistencies in the source; they do not change the rules.
+This English edition is Feralyst's authoritative rules text. It translates the [archived *Berserk Online* expanded rules](https://web.archive.org/web/20131006081326/http://berserk.mail.ru/rashirennye_pravila.html), preserved in this repository as [original HTML](source/expanded-rules.html.txt) with [provenance](source/provenance.json). The source identifies its copyright holder as © ООО БЕРСЕРК ОНЛАЙН. Rule numbers and inherited examples are retained. English wording awaits Denis's translation review. Notes explicitly marked **Translator's note** describe gaps or inconsistencies in the source; they do not change the rules.
 
 **Terms.** *Card* translates карта; *battlefield* translates поле боя; *cell* translates клетка; *token* translates фишка; *marker* translates маркер. A card's *owner* is its original deck holder; its *controller* is the player whose squad currently contains it. *Game action* translates игродействие; *ability* translates особенность; *property* translates свойство; *wound* translates рана; *close* and *open* describe the source's two card states. *Bring into a squad* translates взять в отряд, which includes several methods; *recruit* translates the narrower набрать в отряд. Square-bracketed labels such as **[Close]** render symbols whose meanings the source states in words.
 
@@ -142,7 +142,7 @@ This English edition is Feralyst's authoritative rules text. It translates the [
 
 <a id="r-200-2-b"></a>**200.2.b** A card's **controller** is the player whose squad currently contains it. This also applies in the recruitment, dealing, graveyard, and deck zones.
 
-<a id="r-200-3"></a>**200.3** Exact card text, including corrections and errata, can be found in the *Berserk* Card Catalogue. **Translator's note:** The source ends this sentence with “at the address” but supplies no address.
+<a id="r-200-3"></a>**200.3** Exact card text, including corrections and errata, can be found in the [*Berserk* Card Catalogue](http://www.berserk.ru/catalog.html).
 
 <a id="r-200-4"></a>**200.4** A **player** is one of the two people in the game. The **active player** is the player whose turn is in progress; the opponent is the **inactive player**.
 
@@ -311,7 +311,11 @@ This English edition is Feralyst's authoritative rules text. It translates the [
 | Both rolled 4 or less | Weak strike | Miss |
 | Both rolled 5 or more | Miss | Weak strike |
 
-For a value X–Y–Z, X is the strength of a weak attack, Y of a medium attack, and Z of a strong attack. “Attack for X” is likewise treated as X–X–X. The same X–Y–Z assignment applies to non-attack abilities by the principle described in [205.5](#r-205-5) and 205.7, except that they have no “strength.” **Translator's note:** The source cites nonexistent 205.7.
+<a id="r-205-7"></a>**205.7** For a value X–Y–Z, X is the strength of a weak attack, Y of a medium attack, and Z of a strong attack.
+
+<a id="r-205-7-a"></a>**205.7.a** “Attack for X” is likewise treated as X–X–X.
+
+<a id="r-205-7-b"></a>**205.7.b** The same X–Y–Z assignment applies to non-attack abilities by the principle described in [205.5](#r-205-5) and [205.7](#r-205-7), except that they have no “strength.”
 
 <a id="r-206"></a>
 
