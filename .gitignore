@@ -6,3 +6,5 @@
 .beads/proxieddb/
 .DS_Store
 /docs/seed/*.zip
+node_modules/
+dist/
