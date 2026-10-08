@@ -16,6 +16,7 @@ bun run dev
 Open the local URL printed by Vite. `bun run build` checks TypeScript and
 builds the production page in `dist/`.
 
+- [English rulebook](docs/rules/rulebook.md)
 - [Project context and decisions](docs/seed/berserk-engine-exploration-2026-10-08/README.md)
 - [Working agreement](AGENTS.md)
 
