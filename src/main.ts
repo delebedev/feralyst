@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { BattleSession, cells, legalCommands } from "./battle-session";
+import { CombatFeedback } from "./combat-feedback";
 import { CombatPlayback } from "./combat-playback";
 import { creatureArt } from "./creature-art";
 import { CreatureSprites, cellPosition } from "./creature-sprites";
@@ -7,13 +8,21 @@ import { OpponentTurn } from "./opponent";
 import type { CardInstance, Cell, Command, EngineEvent } from "./model";
 
 const battle = new BattleSession();
-const playback = new CombatPlayback(battle, (step) => creatures.play(step), render);
+const playback = new CombatPlayback(
+  battle,
+  async (step) => {
+    await Promise.all([creatures.play(step), feedback.play(step, playback.state, resolution)]);
+  },
+  render,
+);
 const opponent = new OpponentTurn(battle, "south", present, 400, () => !playback.busy);
 let selected: string | null = null;
 let resolution = 0;
 let tiles: Phaser.GameObjects.Container;
 let boardDetails: Phaser.GameObjects.Container;
 let creatures: CreatureSprites;
+let feedback: CombatFeedback;
+let activePlayer = "north";
 const board = document.querySelector<HTMLElement>("#game")!;
 const scene = new (class extends Phaser.Scene {
   preload(): void {
@@ -25,6 +34,10 @@ const scene = new (class extends Phaser.Scene {
     tiles = this.add.container(0, 0);
     boardDetails = this.add.container(0, 0).setDepth(2);
     creatures = new CreatureSprites(this);
+    feedback = new CombatFeedback(
+      this,
+      () => matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
     const resize = () => {
       const nextResolution = Math.max(
         1,
@@ -111,13 +124,14 @@ function cardText(card: CardInstance): string {
   const definition = playback.state.definitions.find(
     (candidate) => candidate.id === card.definition,
   )!;
-  return `${definition.name}\n${definition.lifeAllowance - card.wounds} life\n${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers} move`}`;
+  return `${definition.name}\n${Math.max(0, definition.lifeAllowance - card.wounds)} life\n${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers} move`}`;
 }
 
 function render(): void {
   const state = playback.state;
   const defenders = battle.defenders;
   const bot = state.priorityPlayer === "south";
+  const exchange = playback.exchange;
   const commands = selected && !bot && !playback.busy ? legalCommands(state, selected) : [];
   boardDetails.removeAll(true);
   tiles.removeAll(true);
@@ -133,18 +147,27 @@ function render(): void {
     );
     const defend = !playback.busy && !bot && card && defenders.includes(card.id);
     const color = card ? (card.controller === "north" ? 0x234867 : 0x693b2f) : 0x202a32;
-    const border = defend
-      ? 0xffd166
-      : attack
+    const source = Boolean(card && exchange && card.id === exchange.source);
+    const target = Boolean(card && exchange && card.id === exchange.target);
+    const border = source
+      ? 0x95d5b2
+      : target
         ? 0xff8b75
-        : move
-          ? 0x95d5b2
-          : card?.id === selected
-            ? 0xffffff
-            : 0x53616b;
+        : defend
+          ? 0xffd166
+          : attack
+            ? 0xff8b75
+            : move
+              ? 0x95d5b2
+              : card?.id === selected
+                ? 0xffffff
+                : 0x53616b;
     const tile = scene.add
       .rectangle(x, y, 68, 68, color)
-      .setStrokeStyle(move || attack || defend || card?.id === selected ? 3 : 1, border)
+      .setStrokeStyle(
+        source || target || move || attack || defend || card?.id === selected ? 3 : 1,
+        border,
+      )
       .setInteractive({ useHandCursor: true })
       .on("pointerup", () => clickCell(cell));
     tiles.add(tile);
@@ -158,7 +181,7 @@ function render(): void {
     );
     if (card) {
       const definition = state.definitions.find((candidate) => candidate.id === card.definition)!;
-      const badge = `${definition.lifeAllowance - card.wounds}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
+      const badge = `${Math.max(0, definition.lifeAllowance - card.wounds)}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
       boardDetails.add(
         scene.add
           .text(x, y + 26, badge, {
@@ -173,21 +196,47 @@ function render(): void {
     }
   });
 
+  if (exchange && playback.step?.animation === "attack") {
+    const position = (id: string) => {
+      const card = state.cards.find((card) => card.id === id);
+      return card?.location.zone === "battlefield" ? cellPosition(card.location.cell) : null;
+    };
+    const from = position(exchange.source);
+    const to = position(exchange.target);
+    if (from && to)
+      boardDetails.add(
+        scene.add
+          .graphics()
+          .lineStyle(2, 0xf5f1e8, 0.8)
+          .lineBetween(from.x, from.y + 15, to.x, to.y + 15),
+      );
+  }
+  if (!playback.busy && activePlayer !== state.activePlayer) {
+    activePlayer = state.activePlayer;
+    if (activePlayer === "north" && !state.outcome) feedback.yourTurn(state);
+  }
+
   status.textContent = playback.busy
     ? "Resolving attack…"
     : state.outcome
       ? state.outcome.kind === "win"
-        ? `${state.outcome.winner} wins`
+        ? state.outcome.winner === "north"
+          ? "You win"
+          : "Opponent wins"
         : "Draw"
       : bot
-        ? "South is thinking…"
+        ? "Opponent’s turn"
         : defenders.length
-          ? `${state.priorityPlayer}: choose a defender`
-          : `${state.activePlayer}'s turn`;
+          ? "Choose a defender"
+          : state.activePlayer === "north"
+            ? "Your turn"
+            : "Opponent’s turn";
   prompt.textContent =
     battle.error ??
     (playback.busy
-      ? "Watch the attack resolve. Restart is available."
+      ? exchange
+        ? `${name(exchange.source)} → ${name(exchange.target)}`
+        : "Watch the attack resolve."
       : state.outcome
         ? "Battle finished. Restart to play again."
         : bot
@@ -229,6 +278,8 @@ document.querySelector<HTMLButtonElement>("#restart")!.onclick = () => {
   battle.restart();
   selected = null;
   creatures.clear();
+  feedback.clear();
+  activePlayer = "north";
   playback.reset();
 };
 

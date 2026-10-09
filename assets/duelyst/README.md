@@ -26,4 +26,4 @@ attack plays once at twelve, hit and death at sixteen. `size` is the displayed s
 board pixels; `origin` aligns the feet within that canvas. Retain source frames and their license for replacement assets.
 Combat playback follows engine events after defender resolution. Attack and
 counterattack play together, followed by wounded creatures reacting and dead
-creatures disappearing. The board and log commit the resolved state afterward.
+creatures disappearing. Wounds appear at the hit stage; final locations and the log commit afterward.

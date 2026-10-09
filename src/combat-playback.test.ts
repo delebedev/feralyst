@@ -26,8 +26,9 @@ test("defender choice precedes combat and redirects both attack and counterattac
       { card: "south-guard", target: "north-fighter" },
     ],
   });
-  expect(steps.map((step) => step.animation)).toEqual(["attack", "hit"]);
-  expect(steps[1]?.actors).not.toContainEqual({ card: "south-fighter" });
+  expect(steps.map((step) => step.animation)).toEqual(["attack", "result", "hit"]);
+  expect(steps[2]?.actors.some((actor) => actor.card === "south-fighter")).toBe(false);
+  expect(steps[1]?.actors.every((actor) => actor.roll === 4)).toBe(true);
 });
 
 test("mutual lethal combat plays attacks, hits, then deaths", () => {
@@ -44,11 +45,11 @@ test("mutual lethal combat plays attacks, hits, then deaths", () => {
   strike(battle);
   expect(battle.state.outcome).toEqual({ kind: "draw" });
   const steps = combatSteps(battle.events, battle.events);
-  expect(steps.map((step) => step.animation)).toEqual(["attack", "hit", "death"]);
-  expect(steps[2]?.actors).toHaveLength(2);
+  expect(steps.map((step) => step.animation)).toEqual(["attack", "result", "hit", "death"]);
+  expect(steps[3]?.actors).toHaveLength(2);
 });
 
-test("visual state and log wait for animation completion", async () => {
+test("dice precede wounds, HP updates at hit, and log waits for completion", async () => {
   const battle = new BattleSession(skirmishPosition, () => 4);
   const seen: CombatStep[] = [];
   let release: (() => void) | undefined;
@@ -67,6 +68,7 @@ test("visual state and log wait for animation completion", async () => {
   const before = playback.state;
   const eventCount = playback.eventCount;
   expect(playback.busy).toBe(false);
+  expect(playback.exchange).toEqual({ source: "north-fighter", target: "south-fighter" });
   battle.takeAttack();
   const running = playback.update();
   expect(playback.busy).toBe(true);
@@ -75,8 +77,17 @@ test("visual state and log wait for animation completion", async () => {
   expect(seen[0]?.animation).toBe("attack");
   release!();
   await Promise.resolve();
-  expect(seen[1]?.animation).toBe("hit");
+  expect(seen[1]?.animation).toBe("result");
   expect(playback.state).toBe(before);
+  release!();
+  await Promise.resolve();
+  expect(seen[2]?.animation).toBe("hit");
+  expect(playback.state.cards.find((card) => card.id === "south-fighter")?.wounds).toBeGreaterThan(
+    0,
+  );
+  expect(before.cards.find((card) => card.id === "south-fighter")?.wounds).toBe(0);
+  expect(playback.state.cards.every((card) => card.location.zone === "battlefield")).toBe(true);
+  expect(playback.eventCount).toBe(eventCount);
   release!();
   await running;
   expect(playback.busy).toBe(false);
@@ -110,4 +121,19 @@ test("restart cancels the old sequence without advancing it or replacing the new
   expect(playback.busy).toBe(false);
   expect(playback.state).toBe(skirmishPosition);
   expect(playback.eventCount).toBe(0);
+  expect(playback.exchange).toBeNull();
+  expect(playback.step).toBeNull();
+});
+
+test("mutual misses still reveal dice and results without wounds or death", () => {
+  let roll = 0;
+  const battle = new BattleSession(skirmishPosition, () => (++roll % 2 ? 2 : 4));
+  strike(battle);
+  battle.takeAttack();
+  const steps = combatSteps(battle.events, battle.events);
+  expect(steps.map((step) => step.animation)).toEqual(["attack", "result", "hit"]);
+  expect(steps[2]?.actors).toEqual([
+    { card: "south-fighter", amount: 0 },
+    { card: "north-fighter", amount: 0 },
+  ]);
 });
