@@ -146,3 +146,12 @@ test("combat completion restores idle, death removes sprites, and clear settles 
   await hit;
   expect(sprites.every((sprite) => sprite.destroyed)).toBe(true);
 });
+
+test("dice and misses do not play hit animations", async () => {
+  const { creatures, sprites } = renderer();
+  creatures.sync(skirmishPosition);
+  const plays = sprites.map((sprite) => sprite.plays);
+  await creatures.play({ animation: "result", actors: [{ card: "north-fighter", roll: 4 }] });
+  await creatures.play({ animation: "hit", actors: [{ card: "north-fighter", amount: 0 }] });
+  expect(sprites.map((sprite) => sprite.plays)).toEqual(plays);
+});

@@ -16,8 +16,10 @@ and ends its turn when no useful action remains. It chooses the first legal
 defender. Actions are paced; your defender choices pause the opponent.
 The chooser is deterministic, but combat dice remain random.
 
-Creatures use Duelyst placeholder sprites. Resolved strikes play attack, hit,
-then death before survivors resume idle. Defender choices precede playback;
+Creatures use Duelyst placeholder sprites. Resolved strikes play attack,
+dice results, hit, then death before survivors resume idle. Attacker and target
+outlines identify the exchange; damage or Miss appears beside affected creatures.
+HP updates when the hit starts. Defender choices precede playback;
 controls and the opponent wait while it runs. Restart cancels playback. Cell badges show HP (remaining
 life), MP (remaining movement), or CLOSED; tapping still shows full inspection.
 Art lives outside rule definitions and can be swapped through `src/creature-art.ts`.

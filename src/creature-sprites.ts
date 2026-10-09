@@ -62,10 +62,12 @@ export class CreatureSprites {
   }
 
   async play(step: CombatStep): Promise<void> {
+    if (step.animation === "result") return;
     await Promise.all(
-      step.actors.map(({ card, target }) => {
+      step.actors.map((actor) => {
+        const { card, target } = actor;
         const sprite = this.sprites.get(card);
-        if (!sprite) return Promise.resolve();
+        if (!sprite || (step.animation === "hit" && actor.amount === 0)) return Promise.resolve();
         const opponent = target ? this.sprites.get(target) : undefined;
         if (opponent && opponent.x !== sprite.x) sprite.setFlipX(opponent.x < sprite.x);
         const asset = sprite.texture.key;

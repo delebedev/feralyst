@@ -2,8 +2,8 @@ import type { BattleSession } from "./battle-session";
 import type { EngineEvent, MatchState } from "./model";
 
 export type CombatStep = Readonly<{
-  animation: "attack" | "hit" | "death";
-  actors: readonly Readonly<{ card: string; target?: string }>[];
+  animation: "attack" | "result" | "hit" | "death";
+  actors: readonly Readonly<{ card: string; target?: string; roll?: number; amount?: number }>[];
 }>;
 
 export function combatSteps(
@@ -23,17 +23,25 @@ export function combatSteps(
         (event) => event.type === "redirected" && event.attack === strike.id,
       );
       const target = redirect?.type === "redirected" ? redirect.to : strike.target;
-      return { card: roll.card, target: roll.card === strike.source ? target : strike.source };
+      return {
+        card: roll.card,
+        target: roll.card === strike.source ? target : strike.source,
+        roll: roll.value,
+      };
     });
   if (!attacks.length) return [];
   // shortcut: stages group one strike per decision; split by action if chained strikes are added.
   return [
-    { animation: "attack" as const, actors: attacks },
+    { animation: "attack" as const, actors: attacks.map(({ card, target }) => ({ card, target })) },
+    { animation: "result" as const, actors: attacks },
     {
       animation: "hit" as const,
-      actors: events
-        .filter((event) => event.type === "wounded")
-        .map((event) => ({ card: event.card })),
+      actors: attacks.map(({ target }) => ({
+        card: target,
+        amount: events
+          .filter((event) => event.type === "wounded" && event.card === target)
+          .reduce((amount, event) => amount + (event.type === "wounded" ? event.amount : 0), 0),
+      })),
     },
     {
       animation: "death" as const,
@@ -48,6 +56,8 @@ export class CombatPlayback {
   state: MatchState;
   eventCount = 0;
   busy = false;
+  step: CombatStep | null = null;
+  private fighting: { source: string; target: string } | null = null;
   private consumed = 0;
   private revision = 0;
 
@@ -59,21 +69,45 @@ export class CombatPlayback {
     this.state = battle.state;
   }
 
+  get exchange(): { source: string; target: string } | null {
+    if (this.fighting) return this.fighting;
+    for (const item of this.state.stack) {
+      const action = this.state.actions[item.action];
+      if (action?.kind === "strike") return { source: action.source, target: action.target };
+    }
+    return null;
+  }
+
   async update(): Promise<void> {
     if (this.busy) return;
     const steps = combatSteps(this.battle.events, this.battle.events.slice(this.consumed));
     this.consumed = this.battle.events.length;
     const revision = this.revision;
     this.busy = steps.length > 0;
-    if (this.busy) this.changed();
+    const attacker = steps[0]?.actors[0];
+    if (attacker?.target) this.fighting = { source: attacker.card, target: attacker.target };
     try {
       for (const step of steps) {
+        this.step = step;
+        if (step.animation === "hit") {
+          this.state = {
+            ...this.state,
+            cards: this.state.cards.map((card) => ({
+              ...card,
+              wounds:
+                card.wounds + (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
+            })),
+          };
+        }
+        this.changed();
         await this.play(step);
         if (revision !== this.revision) return;
       }
     } finally {
       if (revision === this.revision) {
         this.busy = false;
+        this.step = null;
+        this.fighting = null;
         this.state = this.battle.state;
         this.eventCount = this.consumed;
         this.changed();
@@ -85,6 +119,8 @@ export class CombatPlayback {
     this.revision++;
     this.consumed = 0;
     this.busy = false;
+    this.step = null;
+    this.fighting = null;
     this.state = this.battle.state;
     this.eventCount = 0;
     this.changed();
