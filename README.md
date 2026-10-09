@@ -4,7 +4,19 @@ A browser-first tactical card game inspired by early Berserk Online.
 
 Selected stack: Phaser + TypeScript. Phone interaction is a design priority.
 
-The current demo renders a Phaser hello world.
+The current demo is a local skirmish: three synthetic creatures per side on a
+5×6 battlefield. Control both sides in one browser. Tap a creature to inspect
+it, then a highlighted cell to move or an enemy to strike. Choose a defender
+when prompted, or take the attack. End turn switches sides; Restart resets the
+battle. Dice, damage and deaths appear in the battle log. Refreshing also resets
+the battle.
+
+Phaser renders the battlefield and handles cell targeting. Native HTML controls
+provide inspection, turn controls and the log beside the canvas, or below it on
+phones. Mobile gameplay must fit one viewport in portrait and landscape, with
+no page or panel scrolling. The log previews the latest four combat events. The existing
+rules engine validates commands; the browser adapter passes through stages
+without decisions and pauses at legal defender reactions.
 
 With Bun and Node.js installed:
 
