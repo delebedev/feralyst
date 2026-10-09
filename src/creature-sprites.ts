@@ -57,7 +57,7 @@ export class CreatureSprites {
       sprite
         .setPosition(x, y + 18)
         .setFlipX(card.controller === "south")
-        .setAlpha(card.status === "closed" ? 0.45 : 1);
+        .setAlpha(card.status === "closed" ? 0.65 : 1);
     }
   }
 

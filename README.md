@@ -20,10 +20,11 @@ Creatures use Duelyst placeholder sprites. Resolved strikes play attack,
 dice results, hit, then death before survivors resume idle. Attacker and target
 outlines identify the exchange; damage or Miss appears beside affected creatures.
 HP updates when the hit starts. Defender choices precede playback;
-controls and the opponent wait while it runs. Restart cancels playback. Cell badges show HP (remaining
-life), MP (remaining movement), or CLOSED; tapping still shows full inspection.
+controls and the opponent wait while it runs. Restart cancels playback. Cells show numbered health
+bars and movement pips. A checkmark and dimmed sprite mean the creature has spent
+its action; tapping still shows full inspection.
 Browser Guards have Armor 1: the first wound from nonmagical attacks is prevented
-each player turn. A1/A0 shows the remaining allowance; inspection shows the total.
+each player turn. The shield shows the remaining allowance; inspection shows the total.
 Browser Wards have “Close: heal an adjacent wounded friendly creature for 2.”
 Select Ward, choose Heal 2, then tap a green ally. Healing includes diagonal
 neighbors, restores only existing wounds and closes Ward. It cannot heal itself.

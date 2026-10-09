@@ -104,7 +104,7 @@ test("redraws and moves retain idle playback while closing changes presentation"
   expect(sprites).toHaveLength(6);
   expect(fighter.plays).toBe(1);
   expect(fighter.y).toBe(cellPosition("B2").y + 18);
-  expect(fighter.alpha).toBe(0.45);
+  expect(fighter.alpha).toBe(0.65);
 });
 
 test("death removes a creature and restart replaces sprites", () => {

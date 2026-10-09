@@ -133,7 +133,7 @@ function cardText(card: CardInstance): string {
   const definition = playback.state.definitions.find(
     (candidate) => candidate.id === card.definition,
   )!;
-  return `${definition.name}\n${Math.max(0, definition.lifeAllowance - card.wounds)} life\n${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers} move`}`;
+  return `${definition.name}\n${Math.max(0, definition.lifeAllowance - card.wounds)} life\n${card.status === "closed" ? "Action spent" : `${definition.movementAllowance - card.movementMarkers} move`}`;
 }
 
 function render(): void {
@@ -199,27 +199,56 @@ function render(): void {
     if (card) {
       const definition = state.definitions.find((candidate) => candidate.id === card.definition)!;
       const armor = definition.abilities?.armor;
-      if (armor)
+      const marks = scene.add.graphics();
+      boardDetails.add(marks);
+      if (armor) {
+        marks.fillStyle(0x18212b).lineStyle(1.5, 0x95d5b2);
+        marks.beginPath();
+        marks.moveTo(x + 15, y - 29);
+        marks.lineTo(x + 30, y - 29);
+        marks.lineTo(x + 30, y - 19);
+        marks.lineTo(x + 22.5, y - 14);
+        marks.lineTo(x + 15, y - 19);
+        marks.closePath();
+        marks.fillPath().strokePath();
         boardDetails.add(
           scene.add
-            .text(x + 30, y - 30, `A${Math.max(0, armor - (card.armorSpent ?? 0))}`, {
+            .text(x + 22.5, y - 22, `${Math.max(0, armor - (card.armorSpent ?? 0))}`, {
               fontSize: "10px",
               fontFamily: "sans-serif",
               color: "#95d5b2",
-              backgroundColor: "#18212b",
               resolution,
             })
-            .setOrigin(1, 0),
+            .setOrigin(0.5),
         );
-      const badge = `${Math.max(0, definition.lifeAllowance - card.wounds)}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
+      }
+      if (card.status === "closed") {
+        marks.lineStyle(2.5, 0xf5f1e8);
+        marks.beginPath();
+        marks.moveTo(x + 17, y + 15);
+        marks.lineTo(x + 22, y + 20);
+        marks.lineTo(x + 30, y + 10);
+        marks.strokePath();
+      } else {
+        for (let i = 0; i < definition.movementAllowance; i++) {
+          const pipX = x + (i - (definition.movementAllowance - 1) / 2) * 9;
+          marks.lineStyle(1.5, 0xf5f1e8).strokeCircle(pipX, y + 19, 2.5);
+          if (i < definition.movementAllowance - card.movementMarkers)
+            marks.fillStyle(0xf5f1e8).fillCircle(pipX, y + 19, 2.5);
+        }
+      }
+      const life = Math.max(0, definition.lifeAllowance - card.wounds);
+      marks.fillStyle(0x18212b).fillRect(x - 28, y + 25, 56, 8);
+      marks.fillStyle(0x95d5b2).fillRect(x - 28, y + 25, (56 * life) / definition.lifeAllowance, 8);
       boardDetails.add(
         scene.add
-          .text(x, y + 26, badge, {
+          .text(x, y + 29, String(life), {
             fontSize: "10px",
             fontFamily: "sans-serif",
             resolution,
             color: "#ffffff",
-            backgroundColor: "#18212b",
+            stroke: "#18212b",
+            strokeThickness: 3,
           })
           .setOrigin(0.5),
       );
