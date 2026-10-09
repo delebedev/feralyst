@@ -1,8 +1,10 @@
 import Phaser from "phaser";
 import { BattleSession, cells, legalCommands } from "./battle-session";
+import { OpponentTurn } from "./opponent";
 import type { CardInstance, Cell, Command, EngineEvent } from "./model";
 
 const battle = new BattleSession();
+const opponent = new OpponentTurn(battle, "south", render);
 let selected: string | null = null;
 let resolution = 0;
 const board = document.querySelector<HTMLElement>("#game")!;
@@ -61,6 +63,7 @@ function act(command: Command): void {
 }
 
 function clickCell(cell: Cell): void {
+  if (battle.state.priorityPlayer !== "north") return;
   const occupant = battle.state.cards.find(
     (card) => card.location.zone === "battlefield" && card.location.cell === cell,
   );
@@ -92,11 +95,12 @@ function cardText(card: CardInstance): string {
 function render(): void {
   const state = battle.state;
   const defenders = battle.defenders;
-  const commands = selected ? legalCommands(state, selected) : [];
+  const bot = state.priorityPlayer === "south";
+  const commands = selected && !bot ? legalCommands(state, selected) : [];
   scene.children.removeAll(true);
   cells.forEach((cell, index) => {
     const x = (index % 5) * 72 + 36;
-    const y = Math.floor(index / 5) * 72 + 36;
+    const y = (5 - Math.floor(index / 5)) * 72 + 36;
     const card = state.cards.find(
       (candidate) => candidate.location.zone === "battlefield" && candidate.location.cell === cell,
     );
@@ -104,7 +108,7 @@ function render(): void {
     const attack = commands.some(
       (command) => command.type === "strike" && command.target === card?.id,
     );
-    const defend = card && defenders.includes(card.id);
+    const defend = !bot && card && defenders.includes(card.id);
     const color = card ? (card.controller === "north" ? 0x234867 : 0x693b2f) : 0x202a32;
     const border = defend
       ? 0xffd166
@@ -144,22 +148,26 @@ function render(): void {
     ? state.outcome.kind === "win"
       ? `${state.outcome.winner} wins`
       : "Draw"
-    : defenders.length
-      ? `${state.priorityPlayer}: choose a defender`
-      : `${state.activePlayer}'s turn`;
+    : bot
+      ? "South is thinking…"
+      : defenders.length
+        ? `${state.priorityPlayer}: choose a defender`
+        : `${state.activePlayer}'s turn`;
   prompt.textContent =
     battle.error ??
     (state.outcome
       ? "Battle finished. Restart to play again."
-      : defenders.length
-        ? "Tap a gold creature to defend, or take the attack."
-        : "Both sides: tap a creature, then green to move or red to attack.");
+      : bot
+        ? "You control north. South plays automatically."
+        : defenders.length
+          ? "Tap a gold creature to defend, or take the attack."
+          : "North: tap a creature, then green to move or red to attack.");
   const card = state.cards.find((candidate) => candidate.id === selected);
   inspection.textContent = card
     ? `${name(card.id)} · ${cardText(card).split("\n").slice(1).join(" · ")} · strike ${state.definitions.find((definition) => definition.id === card.definition)!.simpleStrike.join("/")}${card.location.zone === "graveyard" ? " · dead" : ""}`
     : "Tap any creature to inspect it.";
-  endTurn.disabled = Boolean(state.outcome || state.stack.length);
-  takeAttack.hidden = !defenders.length;
+  endTurn.disabled = Boolean(bot || state.outcome || state.stack.length);
+  takeAttack.hidden = bot || !defenders.length;
 
   log.textContent =
     battle.events
@@ -168,18 +176,22 @@ function render(): void {
       .slice(-4)
       .reverse()
       .join(" · ") || "No actions yet.";
+  opponent.update();
 }
 
 endTurn.onclick = () => {
-  battle.endTurn();
+  if (battle.state.priorityPlayer !== "north") return;
+  battle.decide({ type: "end-turn" });
   selected = null;
   render();
 };
 takeAttack.onclick = () => {
-  battle.takeAttack();
+  if (battle.state.priorityPlayer !== "north") return;
+  battle.decide({ type: "take-attack" });
   render();
 };
 document.querySelector<HTMLButtonElement>("#restart")!.onclick = () => {
+  opponent.cancel();
   battle.restart();
   selected = null;
   render();

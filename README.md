@@ -5,11 +5,16 @@ A browser-first tactical card game inspired by early Berserk Online.
 Selected stack: Phaser + TypeScript. Phone interaction is a design priority.
 
 The current demo is a local skirmish: three synthetic creatures per side on a
-5×6 battlefield. Control both sides in one browser. Tap a creature to inspect
-it, then a highlighted cell to move or an enemy to strike. Choose a defender
-when prompted, or take the attack. End turn switches sides; Restart resets the
+5×6 battlefield. You control north at the bottom; a basic opponent controls
+south at the top. Tap a
+creature to inspect it, then a highlighted cell to move or an enemy to strike.
+Choose a defender when prompted, or take the attack. End turn lets south play;
+Restart resets the
 battle. Dice, damage and deaths appear in the battle log. Refreshing also resets
-the battle.
+the battle. South attacks the weakest adjacent enemy, otherwise moves closer,
+and ends its turn when no useful action remains. It chooses the first legal
+defender. Actions are paced; your defender choices pause the opponent.
+The chooser is deterministic, but combat dice remain random.
 
 Phaser renders the battlefield and handles cell targeting. Native HTML controls
 provide inspection, turn controls and the log beside the canvas, or below it on

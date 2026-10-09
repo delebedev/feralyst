@@ -41,6 +41,11 @@ export function legalCommands(state: MatchState, card: string): Command[] {
   return candidates.filter((command) => applyCommand(state, command).ok);
 }
 
+export type BattleDecision =
+  | Exclude<Command, { type: "pass" }>
+  | Readonly<{ type: "end-turn" }>
+  | Readonly<{ type: "take-attack" }>;
+
 export class BattleSession {
   state: MatchState;
   events: EngineEvent[] = [];
@@ -59,6 +64,23 @@ export class BattleSession {
     return this.state.cards
       .filter((card) => applyCommand(this.state, { type: "defend", player, card: card.id }).ok)
       .map((card) => card.id);
+  }
+
+  get decisions(): BattleDecision[] {
+    if (this.state.outcome) return [];
+    const commands = this.state.cards
+      .flatMap((card) => legalCommands(this.state, card.id))
+      .filter((command) => command.type !== "pass");
+    if (this.defenders.length) return [...commands, { type: "take-attack" }];
+    if (!this.state.stack.length && this.state.phase === "main")
+      return [...commands, { type: "end-turn" }];
+    return commands;
+  }
+
+  decide(decision: BattleDecision): void {
+    if (decision.type === "end-turn") this.endTurn();
+    else if (decision.type === "take-attack") this.takeAttack();
+    else this.command(decision);
   }
 
   command(command: Command): void {
