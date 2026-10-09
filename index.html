@@ -2,21 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hello world | Feralyst</title>
-    <style>
-      body {
-        margin: 0;
-        background: #18212b;
-      }
-      #game {
-        width: 100vw;
-        height: 100dvh;
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Skirmish | Feralyst</title>
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <main id="game" aria-label="Hello world Phaser demo"></main>
+    <main>
+      <header>
+        <h1>Feralyst skirmish</h1>
+        <button id="restart">Restart</button>
+      </header>
+      <h2 id="status" aria-live="polite">Loading battlefield…</h2>
+      <div class="battle">
+        <div
+          id="game"
+          role="img"
+          aria-label="Five by six battlefield. North is blue; south is rust. Tap a creature, then a highlighted target."
+        ></div>
+        <section aria-label="Battle controls">
+          <p id="prompt" role="status"></p>
+          <p id="inspection"></p>
+          <div class="actions">
+            <button id="end-turn">End turn</button
+            ><button id="take-attack" hidden>Take the attack</button>
+          </div>
+          <pre id="log" aria-label="Latest battle events"></pre>
+        </section>
+      </div>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
