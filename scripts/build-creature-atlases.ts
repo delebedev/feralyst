@@ -10,7 +10,8 @@ for (const file of new Bun.Glob("*.json").scanSync({ cwd: "assets/duelyst" })) {
   assert.equal(png.getUint32(0), 0x89504e47, "Expected a PNG source");
   assert.equal(source.width, png.getUint32(16), "Atlas width must match PNG");
   assert.equal(source.height, png.getUint32(20), "Atlas height must match PNG");
-  assert(source.frames.idle && source.frames.idle.length > 1, "Expected animated idle frames");
+  for (const animation of ["idle", "attack", "hit", "death"])
+    assert(source.frames[animation]?.length, `Missing ${animation} frames`);
   const frames = Object.fromEntries(
     Object.values(source.frames)
       .flat()

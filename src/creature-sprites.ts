@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { cells } from "./battle-session";
+import type { CombatStep } from "./combat-playback";
 import { creatureArt } from "./creature-art";
 import type { Cell, MatchState } from "./model";
 
@@ -14,17 +15,20 @@ export class CreatureSprites {
   constructor(private readonly scene: Phaser.Scene) {
     for (const { asset } of Object.values(creatureArt)) {
       scene.textures.get(asset).setFilter(Phaser.Textures.FilterMode.NEAREST);
-      const frames = scene.textures
-        .get(asset)
-        .getFrameNames()
-        .filter((frame) => frame.startsWith(`${asset}_idle_`))
-        .sort();
-      scene.anims.create({
-        key: `${asset}:idle`,
-        frames: frames.map((frame) => ({ key: asset, frame })),
-        frameRate: 8,
-        repeat: -1,
-      });
+      for (const animation of ["idle", "attack", "hit", "death"]) {
+        const frames = scene.textures
+          .get(asset)
+          .getFrameNames()
+          .filter((frame) => frame.startsWith(`${asset}_${animation}_`))
+          .sort();
+        if (!frames.length) throw new Error(`Missing ${animation} frames: ${asset}`);
+        scene.anims.create({
+          key: `${asset}:${animation}`,
+          frames: frames.map((frame) => ({ key: asset, frame })),
+          frameRate: animation === "idle" ? 8 : animation === "attack" ? 12 : 16,
+          repeat: animation === "idle" ? -1 : 0,
+        });
+      }
     }
   }
 
@@ -55,6 +59,35 @@ export class CreatureSprites {
         .setFlipX(card.controller === "south")
         .setAlpha(card.status === "closed" ? 0.45 : 1);
     }
+  }
+
+  async play(step: CombatStep): Promise<void> {
+    await Promise.all(
+      step.actors.map(({ card, target }) => {
+        const sprite = this.sprites.get(card);
+        if (!sprite) return Promise.resolve();
+        const opponent = target ? this.sprites.get(target) : undefined;
+        if (opponent && opponent.x !== sprite.x) sprite.setFlipX(opponent.x < sprite.x);
+        const asset = sprite.texture.key;
+        return new Promise<void>((resolve) => {
+          const cancelled = () => {
+            sprite.off("animationcomplete", complete);
+            resolve();
+          };
+          const complete = () => {
+            sprite.off("destroy", cancelled);
+            if (step.animation === "death") {
+              sprite.destroy();
+              this.sprites.delete(card);
+            } else sprite.play(`${asset}:idle`);
+            resolve();
+          };
+          sprite.once("animationcomplete", complete);
+          sprite.once("destroy", cancelled);
+          sprite.play(`${asset}:${step.animation}`);
+        });
+      }),
+    );
   }
 
   clear(): void {

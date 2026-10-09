@@ -1,11 +1,14 @@
 import { expect, mock, test } from "bun:test";
+import { EventEmitter } from "node:events";
 import type Phaser from "phaser";
 import { skirmishPosition } from "./battle-session";
 
 await mock.module("phaser", () => ({ default: { Textures: { FilterMode: { NEAREST: 0 } } } }));
 const { CreatureSprites, cellPosition } = await import("./creature-sprites");
 
-class Sprite {
+class Sprite extends EventEmitter {
+  texture = { key: "" };
+  animation = "";
   x = 0;
   y = 0;
   flip = false;
@@ -21,7 +24,8 @@ class Sprite {
   setDisplaySize() {
     return this;
   }
-  play() {
+  play(key: string) {
+    this.animation = key;
     this.plays++;
     return this;
   }
@@ -40,6 +44,7 @@ class Sprite {
   }
   destroy() {
     this.destroyed = true;
+    this.emit("destroy");
   }
 }
 
@@ -49,13 +54,18 @@ function renderer(): { creatures: InstanceType<typeof CreatureSprites>; sprites:
     textures: {
       get: (asset: string) => ({
         setFilter: () => {},
-        getFrameNames: () => [`${asset}_idle_001.png`, `${asset}_idle_000.png`],
+        getFrameNames: () =>
+          ["idle", "attack", "hit", "death"].flatMap((animation) => [
+            `${asset}_${animation}_001.png`,
+            `${asset}_${animation}_000.png`,
+          ]),
       }),
     },
     anims: { create: () => {} },
     add: {
-      sprite: () => {
+      sprite: (_x: number, _y: number, asset: string) => {
         const sprite = new Sprite();
+        sprite.texture.key = asset;
         sprites.push(sprite);
         return sprite;
       },
@@ -113,4 +123,26 @@ test("death removes a creature and restart replaces sprites", () => {
   creatures.sync(skirmishPosition);
   expect(sprites).toHaveLength(12);
   expect(sprites.slice(6).every((sprite) => !sprite.destroyed && sprite.plays === 1)).toBe(true);
+});
+
+test("combat completion restores idle, death removes sprites, and clear settles pending playback", async () => {
+  const { creatures, sprites } = renderer();
+  creatures.sync(skirmishPosition);
+  const fighter = sprites[0]!;
+  const attack = creatures.play({
+    animation: "attack",
+    actors: [{ card: "north-fighter", target: "south-ward" }],
+  });
+  expect(fighter.animation).toEndWith(":attack");
+  fighter.emit("animationcomplete");
+  await attack;
+  expect(fighter.animation).toEndWith(":idle");
+  const death = creatures.play({ animation: "death", actors: [{ card: "north-fighter" }] });
+  fighter.emit("animationcomplete");
+  await death;
+  expect(fighter.destroyed).toBe(true);
+  const hit = creatures.play({ animation: "hit", actors: [{ card: "north-guard" }] });
+  creatures.clear();
+  await hit;
+  expect(sprites.every((sprite) => sprite.destroyed)).toBe(true);
 });

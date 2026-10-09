@@ -58,16 +58,18 @@ export class OpponentTurn {
     private readonly player: PlayerId,
     private readonly changed: () => void,
     private readonly delay = 400,
+    private readonly ready: () => boolean = () => true,
   ) {}
 
   update(): void {
-    if (this.timer !== null || this.battle.state.priorityPlayer !== this.player) return;
+    if (this.timer !== null || !this.ready() || this.battle.state.priorityPlayer !== this.player)
+      return;
     const state = this.battle.state;
     const action = chooseAction(state, this.battle.decisions);
     if (!action) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      if (this.battle.state === state) {
+      if (this.ready() && this.battle.state === state) {
         this.battle.decide(action);
         this.changed();
       }

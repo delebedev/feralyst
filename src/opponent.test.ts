@@ -169,3 +169,35 @@ test("restart cancels a pending decision and stale states are never applied", as
   expect(battle.state).toBe(skirmishPosition);
   expect(changes).toBe(0);
 });
+
+test("playback readiness blocks scheduling and a pending decision until resumed", async () => {
+  const battle = new BattleSession();
+  let ready = false;
+  let changes = 0;
+  const opponent = new OpponentTurn(
+    battle,
+    "south",
+    () => changes++,
+    10,
+    () => ready,
+  );
+  try {
+    battle.endTurn();
+    const before = battle.state;
+    opponent.update();
+    await Bun.sleep(25);
+    expect(battle.state).toBe(before);
+    ready = true;
+    opponent.update();
+    ready = false;
+    await Bun.sleep(25);
+    expect(battle.state).toBe(before);
+    expect(changes).toBe(0);
+    ready = true;
+    opponent.update();
+    await waitFor(() => changes > 0);
+    expect(changes).toBe(1);
+  } finally {
+    opponent.cancel();
+  }
+});

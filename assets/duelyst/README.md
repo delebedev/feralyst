@@ -15,13 +15,15 @@ These three sheets use untrimmed, unrotated frames centered within their source
 canvas. The converter preserves that frame geometry.
 
 `bun run assets` builds Phaser atlas JSON from the checked-in metadata, without
-network access. `bun run assets:check` checks dimensions, frame bounds, idle
+network access. `bun run assets:check` checks dimensions, frame bounds, required animation
 sequences and reproducibility. Generated atlas JSON is kept compact and excluded
 from formatting, along with the unchanged source JSON.
 
 To swap art, supply a PNG and Phaser JSON atlas under `public/creatures/`, then
-edit `src/creature-art.ts`. Idle frames use `<asset>_idle_<number>.png`, played
-at eight frames per second. `size` is the displayed square canvas size in logical
+edit `src/creature-art.ts`. Frames use `<asset>_<state>_<number>.png` for
+`idle`, `attack`, `hit` and `death`. Idle loops at eight frames per second;
+attack plays once at twelve, hit and death at sixteen. `size` is the displayed square canvas size in logical
 board pixels; `origin` aligns the feet within that canvas. Retain source frames and their license for replacement assets.
-The supplied sheets also contain other animation states, but this slice only
-plays idle; combat animation sequencing is separate work.
+Combat playback follows engine events after defender resolution. Attack and
+counterattack play together, followed by wounded creatures reacting and dead
+creatures disappearing. The board and log commit the resolved state afterward.
