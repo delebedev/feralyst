@@ -62,7 +62,7 @@ export class CreatureSprites {
   }
 
   async play(step: CombatStep): Promise<void> {
-    if (step.animation === "result") return;
+    if (step.animation === "result" || step.animation === "heal") return;
     await Promise.all(
       step.actors.map((actor) => {
         const { card, target } = actor;

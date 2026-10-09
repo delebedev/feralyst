@@ -103,3 +103,23 @@ test("combat replaces turn emphasis and clear removes all remaining feedback", a
   await playing;
   expect(labels.every((label) => label.destroyed)).toBe(true);
 });
+
+test("healing shows positive actual restoration and armor absorption is not a miss", async () => {
+  const { feedback, labels, timers } = renderer();
+  const healing = feedback.play(
+    { animation: "heal", actors: [{ card: "north-guard", amount: 1 }] },
+    skirmishPosition,
+    1,
+  );
+  expect(labels[0]?.text).toBe("+1");
+  timers[0]!.callback();
+  await healing;
+  const armor = feedback.play(
+    { animation: "hit", actors: [{ card: "north-guard", amount: 0, prevented: 1 }] },
+    skirmishPosition,
+    1,
+  );
+  expect(labels[1]?.text).toBe("Armor");
+  feedback.clear();
+  await armor;
+});

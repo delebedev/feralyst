@@ -17,7 +17,7 @@ export type CardDefinition = Readonly<{
   movementAllowance: number;
   lifeAllowance: number;
   simpleStrike: StrikeProfile;
-  abilities?: Readonly<{ armor?: number }>;
+  abilities?: Readonly<{ armor?: number; heal?: number }>;
 }>;
 
 export type CardInstance = Readonly<{
@@ -49,9 +49,15 @@ export type StrikeAction = ActionBase &
     rolls: Readonly<{ source: Die; responder: Die | null }> | null;
     damage: Readonly<{ toTarget: number; toSource: number }> | null;
   }>;
+export type HealAction = ActionBase & Readonly<{ kind: "heal"; target: CardId; amount: number }>;
 export type DefenderAction = ActionBase & Readonly<{ kind: "defender"; attack: ActionId }>;
 export type DestructionAction = ActionBase & Readonly<{ kind: "destruction" }>;
-export type Action = MovementAction | StrikeAction | DefenderAction | DestructionAction;
+export type Action =
+  | MovementAction
+  | StrikeAction
+  | HealAction
+  | DefenderAction
+  | DestructionAction;
 export type Stage =
   | "declaration"
   | "target"
@@ -87,9 +93,15 @@ export type StrikeCommand = Readonly<{
   card: CardId;
   target: CardId;
 }>;
+export type HealCommand = Readonly<{
+  type: "heal";
+  player: PlayerId;
+  card: CardId;
+  target: CardId;
+}>;
 export type DefenderCommand = Readonly<{ type: "defend"; player: PlayerId; card: CardId }>;
 export type PassCommand = Readonly<{ type: "pass"; player: PlayerId }>;
-export type Command = MoveCommand | StrikeCommand | DefenderCommand | PassCommand;
+export type Command = MoveCommand | StrikeCommand | HealCommand | DefenderCommand | PassCommand;
 export type Rejection =
   | "battle-ended"
   | "unknown-player"
@@ -112,7 +124,9 @@ export type Rejection =
   | "no-defender-window"
   | "already-redirected"
   | "defender-not-adjacent"
-  | "preliminary-phase-unsupported";
+  | "preliminary-phase-unsupported"
+  | "no-heal-ability"
+  | "invalid-heal-target";
 
 export type EngineEvent =
   | Readonly<{ type: "declared"; action: Action }>
@@ -122,6 +136,7 @@ export type EngineEvent =
   | Readonly<{ type: "rolled"; action: ActionId; card: CardId; value: Die }>
   | Readonly<{ type: "calculated"; action: ActionId; toTarget: number; toSource: number }>
   | Readonly<{ type: "redirected"; attack: ActionId; from: CardId; to: CardId }>
+  | Readonly<{ type: "healed"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "prevented"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "wounded"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "destroyed"; card: CardId; owner: PlayerId }>

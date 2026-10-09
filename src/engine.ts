@@ -71,6 +71,17 @@ function inSquad(card: CardInstance): boolean {
 function currentLife(state: MatchState, card: CardInstance): number {
   return getDefinition(state, card).lifeAllowance - card.wounds;
 }
+function canHeal(state: MatchState, source: CardInstance, target: CardInstance): boolean {
+  return (
+    Boolean(getDefinition(state, source).abilities?.heal) &&
+    source.location.zone === "battlefield" &&
+    target.location.zone === "battlefield" &&
+    source.controller === target.controller &&
+    adjacent(source.location.cell, target.location.cell) &&
+    target.wounds > 0
+  );
+}
+
 function replaceCard(state: MatchState, updated: CardInstance): MatchState {
   return { ...state, cards: state.cards.map((card) => (card.id === updated.id ? updated : card)) };
 }
@@ -283,15 +294,21 @@ export function applyCommand(
       if (!target) return reject("unknown-target");
       if (target.location.zone !== "battlefield") return reject("target-not-on-battlefield");
       if (!adjacent(card.location.cell, target.location.cell)) return reject("not-adjacent");
-      action = {
-        ...base(state, card),
-        kind: "strike",
-        initialTarget: target.id,
-        target: target.id,
-        closeOnPayment: [card.id],
-        rolls: null,
-        damage: null,
-      };
+      if (command.type === "heal") {
+        const amount = getDefinition(state, card).abilities?.heal;
+        if (!amount) return reject("no-heal-ability");
+        if (!canHeal(state, card, target)) return reject("invalid-heal-target");
+        action = { ...base(state, card), kind: "heal", target: target.id, amount };
+      } else
+        action = {
+          ...base(state, card),
+          kind: "strike",
+          initialTarget: target.id,
+          target: target.id,
+          closeOnPayment: [card.id],
+          rolls: null,
+          damage: null,
+        };
     }
   }
   const next = declare(state, action, events);
@@ -311,6 +328,7 @@ function legal(state: MatchState, action: Action): boolean {
       )
     );
   }
+  if (action.kind === "heal") return canHeal(state, source, getCard(state, action.target));
   const target = getCard(
     state,
     action.kind === "strike" ? action.target : getStrike(state, action.attack).target,
@@ -398,6 +416,11 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
       const attack = getStrike(state, action.attack);
       state = replaceAction(state, { ...attack, target: source.id });
       events.push({ type: "redirected", attack: attack.id, from: attack.target, to: source.id });
+    } else if (action.kind === "heal") {
+      const target = getCard(state, action.target);
+      const amount = Math.min(action.amount, target.wounds);
+      state = replaceCard(state, { ...target, wounds: target.wounds - amount });
+      events.push({ type: "healed", card: target.id, source: source.id, amount });
     } else if (action.kind === "destruction") {
       state = replaceCard(state, {
         ...source,
@@ -445,9 +468,9 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
         ...attack,
         closeOnPayment: [...attack.closeOnPayment, source.id],
       });
-    } else if (action.kind === "strike") {
+    } else if (action.kind === "strike" || action.kind === "heal") {
       // Effects already happened: pay as far as possible even if the source died (423.1.a, 416.2).
-      for (const id of action.closeOnPayment) {
+      for (const id of action.kind === "heal" ? [source.id] : action.closeOnPayment) {
         const card = getCard(state, id);
         if (!inSquad(card) || card.status === "closed") continue;
         state = replaceCard(state, { ...card, status: "closed" });

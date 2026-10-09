@@ -2,7 +2,7 @@ import type { BattleSession } from "./battle-session";
 import type { EngineEvent, MatchState } from "./model";
 
 export type CombatStep = Readonly<{
-  animation: "attack" | "result" | "hit" | "death";
+  animation: "attack" | "result" | "hit" | "death" | "heal";
   actors: readonly Readonly<{
     card: string;
     target?: string;
@@ -35,7 +35,13 @@ export function combatSteps(
         roll: roll.value,
       };
     });
-  if (!attacks.length) return [];
+  if (!attacks.length)
+    return events
+      .filter((event) => event.type === "healed")
+      .map((event) => ({
+        animation: "heal",
+        actors: [{ card: event.card, target: event.source, amount: event.amount }],
+      }));
   // shortcut: stages group one strike per decision; split by action if chained strikes are added.
   return [
     { animation: "attack" as const, actors: attacks.map(({ card, target }) => ({ card, target })) },
@@ -98,11 +104,15 @@ export class CombatPlayback {
     const revision = this.revision;
     this.busy = steps.length > 0;
     const attacker = steps[0]?.actors[0];
-    if (attacker?.target) this.fighting = { source: attacker.card, target: attacker.target };
+    if (attacker?.target)
+      this.fighting =
+        steps[0]?.animation === "heal"
+          ? { source: attacker.target, target: attacker.card }
+          : { source: attacker.card, target: attacker.target };
     try {
       for (const step of steps) {
         this.step = step;
-        if (step.animation === "hit") {
+        if (step.animation === "hit" || step.animation === "heal") {
           this.state = {
             ...this.state,
             cards: this.state.cards.map((card) => ({
@@ -114,7 +124,9 @@ export class CombatPlayback {
                   }
                 : {}),
               wounds:
-                card.wounds + (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
+                card.wounds +
+                (step.animation === "heal" ? -1 : 1) *
+                  (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
             })),
           };
         }

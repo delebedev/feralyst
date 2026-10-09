@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { BattleSession, skirmishPosition } from "./battle-session";
+import { abilityPosition, BattleSession, skirmishPosition } from "./battle-session";
 import { createBattle } from "./engine";
 import { chooseAction, OpponentTurn } from "./opponent";
 import type { Cell } from "./model";
@@ -200,4 +200,25 @@ test("playback readiness blocks scheduling and a pending decision until resumed"
   } finally {
     opponent.cancel();
   }
+});
+
+test("bot chooses a useful heal from legal decisions, then continues after Ward closes", () => {
+  const initial = createBattle({
+    ...abilityPosition,
+    activePlayer: "south",
+    cards: abilityPosition.cards.map((card) =>
+      card.id === "south-guard" ? { ...card, wounds: 2 } : card,
+    ),
+  });
+  const battle = new BattleSession(initial);
+  expect(chooseAction(battle.state, battle.decisions)).toEqual({
+    type: "heal",
+    player: "south",
+    card: "south-ward",
+    target: "south-guard",
+  });
+  battle.decide(chooseAction(battle.state, battle.decisions)!);
+  expect(battle.state.cards.find((card) => card.id === "south-guard")?.wounds).toBe(0);
+  expect(battle.state.cards.find((card) => card.id === "south-ward")?.status).toBe("closed");
+  expect(chooseAction(battle.state, battle.decisions)?.type).not.toBe("heal");
 });
