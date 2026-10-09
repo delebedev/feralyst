@@ -1,4 +1,10 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [".beads/**", "docs/rules/**", "docs/seed/**"]
+  "ignorePatterns": [
+    ".beads/**",
+    "docs/rules/**",
+    "docs/seed/**",
+    "assets/duelyst/*.json",
+    "public/creatures/*.json"
+  ]
 }

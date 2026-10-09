@@ -11,7 +11,9 @@
     "test": "bun test",
     "battle": "bun src/battle-demo.ts",
     "build": "vite build",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build"
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run assets:check && bun run test && bun run build",
+    "assets": "bun scripts/build-creature-atlases.ts",
+    "assets:check": "bun scripts/build-creature-atlases.ts --check"
   },
   "dependencies": {
     "phaser": "4.2.1"

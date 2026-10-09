@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { BattleSession, cells, legalCommands } from "./battle-session";
+import { creatureArt } from "./creature-art";
+import { CreatureSprites, cellPosition } from "./creature-sprites";
 import { OpponentTurn } from "./opponent";
 import type { CardInstance, Cell, Command, EngineEvent } from "./model";
 
@@ -7,9 +9,20 @@ const battle = new BattleSession();
 const opponent = new OpponentTurn(battle, "south", render);
 let selected: string | null = null;
 let resolution = 0;
+let tiles: Phaser.GameObjects.Container;
+let boardDetails: Phaser.GameObjects.Container;
+let creatures: CreatureSprites;
 const board = document.querySelector<HTMLElement>("#game")!;
 const scene = new (class extends Phaser.Scene {
+  preload(): void {
+    for (const { asset } of Object.values(creatureArt))
+      this.load.atlas(asset, `/creatures/${asset}.png`, `/creatures/${asset}.json`);
+  }
+
   create(): void {
+    tiles = this.add.container(0, 0);
+    boardDetails = this.add.container(0, 0).setDepth(2);
+    creatures = new CreatureSprites(this);
     const resize = () => {
       const nextResolution = Math.max(
         1,
@@ -97,10 +110,11 @@ function render(): void {
   const defenders = battle.defenders;
   const bot = state.priorityPlayer === "south";
   const commands = selected && !bot ? legalCommands(state, selected) : [];
-  scene.children.removeAll(true);
-  cells.forEach((cell, index) => {
-    const x = (index % 5) * 72 + 36;
-    const y = (5 - Math.floor(index / 5)) * 72 + 36;
+  boardDetails.removeAll(true);
+  tiles.removeAll(true);
+  creatures.sync(state);
+  cells.forEach((cell) => {
+    const { x, y } = cellPosition(cell);
     const card = state.cards.find(
       (candidate) => candidate.location.zone === "battlefield" && candidate.location.cell === cell,
     );
@@ -119,29 +133,35 @@ function render(): void {
           : card?.id === selected
             ? 0xffffff
             : 0x53616b;
-    scene.add
+    const tile = scene.add
       .rectangle(x, y, 68, 68, color)
       .setStrokeStyle(move || attack || defend || card?.id === selected ? 3 : 1, border)
       .setInteractive({ useHandCursor: true })
       .on("pointerup", () => clickCell(cell));
-    scene.add.text(x - 30, y - 30, cell, {
-      fontSize: "10px",
-      fontFamily: "sans-serif",
-      color: "#b7c5ce",
-      resolution,
-    });
-    if (card)
-      scene.add
-        .text(x, y + 4, cardText(card), {
-          fontSize: "13px",
-          fontFamily: "sans-serif",
-          resolution,
-          color: "#ffffff",
-          align: "center",
-          lineSpacing: 3,
-        })
-        .setOrigin(0.5)
-        .setAlpha(card.status === "closed" ? 0.65 : 1);
+    tiles.add(tile);
+    boardDetails.add(
+      scene.add.text(x - 30, y - 30, cell, {
+        fontSize: "10px",
+        fontFamily: "sans-serif",
+        color: "#b7c5ce",
+        resolution,
+      }),
+    );
+    if (card) {
+      const definition = state.definitions.find((candidate) => candidate.id === card.definition)!;
+      const badge = `${definition.lifeAllowance - card.wounds}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
+      boardDetails.add(
+        scene.add
+          .text(x, y + 26, badge, {
+            fontSize: "10px",
+            fontFamily: "sans-serif",
+            resolution,
+            color: "#ffffff",
+            backgroundColor: "#18212b",
+          })
+          .setOrigin(0.5),
+      );
+    }
   });
 
   status.textContent = state.outcome
@@ -192,6 +212,7 @@ takeAttack.onclick = () => {
 };
 document.querySelector<HTMLButtonElement>("#restart")!.onclick = () => {
   opponent.cancel();
+  creatures.clear();
   battle.restart();
   selected = null;
   render();
