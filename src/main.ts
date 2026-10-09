@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BattleSession, cells, legalCommands } from "./battle-session";
+import { abilityPosition, BattleSession, cells, legalCommands } from "./battle-session";
 import { CombatFeedback } from "./combat-feedback";
 import { CombatPlayback } from "./combat-playback";
 import { creatureArt } from "./creature-art";
@@ -7,7 +7,7 @@ import { CreatureSprites, cellPosition } from "./creature-sprites";
 import { OpponentTurn } from "./opponent";
 import type { CardInstance, Cell, Command, EngineEvent } from "./model";
 
-const battle = new BattleSession();
+const battle = new BattleSession(abilityPosition);
 const playback = new CombatPlayback(
   battle,
   async (step) => {
@@ -74,6 +74,8 @@ function describe(event: EngineEvent): string | null {
       return `${name(event.card)} moved ${event.from} → ${event.to}.`;
     case "rolled":
       return `${name(event.card)} rolled ${event.value}.`;
+    case "prevented":
+      return `${name(event.card)} armor prevented ${event.amount}.`;
     case "wounded":
       return `${name(event.card)} took ${event.amount} damage.`;
     case "destroyed":
@@ -181,7 +183,8 @@ function render(): void {
     );
     if (card) {
       const definition = state.definitions.find((candidate) => candidate.id === card.definition)!;
-      const badge = `${Math.max(0, definition.lifeAllowance - card.wounds)}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
+      const armor = definition.abilities?.armor;
+      const badge = `${Math.max(0, definition.lifeAllowance - card.wounds)}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}${armor ? ` A${Math.max(0, armor - (card.armorSpent ?? 0))}` : ""}`;
       boardDetails.add(
         scene.add
           .text(x, y + 26, badge, {
@@ -245,8 +248,11 @@ function render(): void {
             ? "Tap a gold creature to defend, or take the attack."
             : "North: tap a creature, then green to move or red to attack.");
   const card = state.cards.find((candidate) => candidate.id === selected);
+  const armor = card
+    ? state.definitions.find((def) => def.id === card.definition)?.abilities?.armor
+    : undefined;
   inspection.textContent = card
-    ? `${name(card.id)} · ${cardText(card).split("\n").slice(1).join(" · ")} · strike ${state.definitions.find((definition) => definition.id === card.definition)!.simpleStrike.join("/")}${card.location.zone === "graveyard" ? " · dead" : ""}`
+    ? `${name(card.id)} · ${cardText(card).split("\n").slice(1).join(" · ")}${armor ? ` · Armor ${Math.max(0, armor - (card.armorSpent ?? 0))}/${armor}` : ""} · strike ${state.definitions.find((definition) => definition.id === card.definition)!.simpleStrike.join("/")}${card.location.zone === "graveyard" ? " · dead" : ""}`
     : "Tap any creature to inspect it.";
   endTurn.disabled = Boolean(playback.busy || bot || state.outcome || state.stack.length);
   takeAttack.hidden = playback.busy || bot || !defenders.length;

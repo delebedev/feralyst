@@ -21,10 +21,18 @@ export function chooseAction(
       target.wounds
     );
   };
+  const armor = (id: string) => {
+    const target = card(id);
+    return Math.max(
+      0,
+      (state.definitions.find((def) => def.id === target.definition)?.abilities?.armor ?? 0) -
+        (target.armorSpent ?? 0),
+    );
+  };
   const defender = actions.find((action) => action.type === "defend");
   if (defender) return defender;
   const strikes = actions.filter((action) => action.type === "strike");
-  strikes.sort((a, b) => life(a.target) - life(b.target));
+  strikes.sort((a, b) => life(a.target) + armor(a.target) - life(b.target) - armor(b.target));
   if (strikes[0]) return strikes[0];
 
   const enemies = state.cards.flatMap((target) =>

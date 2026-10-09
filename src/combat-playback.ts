@@ -3,7 +3,13 @@ import type { EngineEvent, MatchState } from "./model";
 
 export type CombatStep = Readonly<{
   animation: "attack" | "result" | "hit" | "death";
-  actors: readonly Readonly<{ card: string; target?: string; roll?: number; amount?: number }>[];
+  actors: readonly Readonly<{
+    card: string;
+    target?: string;
+    roll?: number;
+    amount?: number;
+    prevented?: number;
+  }>[];
 }>;
 
 export function combatSteps(
@@ -38,6 +44,13 @@ export function combatSteps(
       animation: "hit" as const,
       actors: attacks.map(({ target }) => ({
         card: target,
+        ...(events.some((event) => event.type === "prevented" && event.card === target)
+          ? {
+              prevented: events
+                .filter((event) => event.type === "prevented" && event.card === target)
+                .reduce((sum, event) => sum + (event.type === "prevented" ? event.amount : 0), 0),
+            }
+          : {}),
         amount: events
           .filter((event) => event.type === "wounded" && event.card === target)
           .reduce((amount, event) => amount + (event.type === "wounded" ? event.amount : 0), 0),
@@ -94,6 +107,12 @@ export class CombatPlayback {
             ...this.state,
             cards: this.state.cards.map((card) => ({
               ...card,
+              ...(step.actors.some((actor) => actor.card === card.id && actor.prevented)
+                ? {
+                    armorSpent: this.battle.state.cards.find((final) => final.id === card.id)
+                      ?.armorSpent,
+                  }
+                : {}),
               wounds:
                 card.wounds + (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
             })),

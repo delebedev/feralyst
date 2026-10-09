@@ -25,7 +25,13 @@ export class CombatFeedback {
         .text(
           x + 27,
           result ? y - 22 : y - 9,
-          result ? `Roll ${actor.roll}` : actor.amount ? `−${actor.amount}` : "Miss",
+          result
+            ? `Roll ${actor.roll}`
+            : actor.amount
+              ? `−${actor.amount}${actor.prevented ? " A" : ""}`
+              : actor.prevented
+                ? "Armor"
+                : "Miss",
           {
             fontFamily: "sans-serif",
             fontSize: result ? "12px" : "14px",

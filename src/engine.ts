@@ -156,6 +156,12 @@ export function createBattle(
   for (const definition of input.definitions) {
     const values = [definition.movementAllowance, ...definition.simpleStrike];
     if (
+      Object.values(definition.abilities ?? {}).some(
+        (value) => !Number.isInteger(value) || value <= 0,
+      )
+    )
+      throw new Error(`Invalid creature ability: ${definition.id}`);
+    if (
       definition.simpleStrike.length !== 3 ||
       values.some((value) => !Number.isInteger(value) || value < 0) ||
       !Number.isInteger(definition.lifeAllowance) ||
@@ -185,7 +191,9 @@ export function createBattle(
       throw new Error(`Invalid card player: ${card.id}`);
     }
     if (
-      ![card.wounds, card.movementMarkers].every((value) => Number.isInteger(value) && value >= 0)
+      ![card.wounds, card.movementMarkers, card.armorSpent ?? 0].every(
+        (value) => Number.isInteger(value) && value >= 0,
+      )
     ) {
       throw new Error(`Invalid card markers: ${card.id}`);
     }
@@ -404,11 +412,23 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
         [target, source.id, action.damage.toTarget],
         [source, target.id, action.damage.toSource],
       ] as const;
-      for (const [card, attacker, amount] of wounds) {
-        if (amount === 0) continue;
-        const updated = { ...card, wounds: card.wounds + amount };
+      for (const [card, attacker, rawAmount] of wounds) {
+        const remaining = Math.max(
+          0,
+          (getDefinition(state, card).abilities?.armor ?? 0) - (card.armorSpent ?? 0),
+        );
+        const prevented = Math.min(rawAmount, remaining);
+        const amount = rawAmount - prevented;
+        if (rawAmount === 0) continue;
+        const updated = {
+          ...card,
+          wounds: card.wounds + amount,
+          ...(prevented ? { armorSpent: (card.armorSpent ?? 0) + prevented } : {}),
+        };
+        if (prevented)
+          events.push({ type: "prevented", card: card.id, source: attacker, amount: prevented });
         state = replaceCard(state, updated);
-        events.push({ type: "wounded", card: card.id, source: attacker, amount });
+        if (amount) events.push({ type: "wounded", card: card.id, source: attacker, amount });
         if (currentLife(state, card) > 0 && currentLife(state, updated) <= 0) {
           state = { ...state, pendingDestructions: [...state.pendingDestructions, card.id] };
         }
@@ -447,6 +467,10 @@ function advancePhase(state: MatchState, events: EngineEvent[]): MatchState {
     const activePlayer =
       state.players[0] === state.activePlayer ? state.players[1] : state.players[0];
     state = { ...state, phase: "initial", activePlayer };
+    // Armor's allowance resets on either player's turn, independently of opening (Armor X).
+    for (const card of state.cards) {
+      if (card.armorSpent && inSquad(card)) state = replaceCard(state, { ...card, armorSpent: 0 });
+    }
     for (const card of state.cards) {
       if (card.controller !== activePlayer || !inSquad(card)) continue;
       if (card.status === "closed" || card.movementMarkers > 0) {

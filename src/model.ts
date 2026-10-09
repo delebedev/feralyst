@@ -10,13 +10,14 @@ export type Location =
   | Readonly<{ zone: "battlefield"; cell: Cell }>
   | Readonly<{ zone: "deck" | "deal" | "recruitment" | "graveyard" | "additional" }>;
 
-// Definitions in this slice describe ordinary ground creatures without abilities.
+// Ability values describe the browser creatures; ordinary fixtures omit them.
 export type CardDefinition = Readonly<{
   id: string;
   name: string;
   movementAllowance: number;
   lifeAllowance: number;
   simpleStrike: StrikeProfile;
+  abilities?: Readonly<{ armor?: number }>;
 }>;
 
 export type CardInstance = Readonly<{
@@ -28,6 +29,7 @@ export type CardInstance = Readonly<{
   status: "open" | "closed";
   movementMarkers: number;
   wounds: number;
+  armorSpent?: number;
 }>;
 
 type ActionBase = Readonly<{
@@ -120,6 +122,7 @@ export type EngineEvent =
   | Readonly<{ type: "rolled"; action: ActionId; card: CardId; value: Die }>
   | Readonly<{ type: "calculated"; action: ActionId; toTarget: number; toSource: number }>
   | Readonly<{ type: "redirected"; attack: ActionId; from: CardId; to: CardId }>
+  | Readonly<{ type: "prevented"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "wounded"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "destroyed"; card: CardId; owner: PlayerId }>
   | Readonly<{ type: "closed" | "refreshed"; card: CardId }>
