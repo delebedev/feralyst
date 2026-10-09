@@ -1,15 +1,30 @@
 import Phaser from "phaser";
 import { BattleSession, cells, legalCommands } from "./battle-session";
+import { CombatPlayback } from "./combat-playback";
+import { creatureArt } from "./creature-art";
+import { CreatureSprites, cellPosition } from "./creature-sprites";
 import { OpponentTurn } from "./opponent";
 import type { CardInstance, Cell, Command, EngineEvent } from "./model";
 
 const battle = new BattleSession();
-const opponent = new OpponentTurn(battle, "south", render);
+const playback = new CombatPlayback(battle, (step) => creatures.play(step), render);
+const opponent = new OpponentTurn(battle, "south", present, 400, () => !playback.busy);
 let selected: string | null = null;
 let resolution = 0;
+let tiles: Phaser.GameObjects.Container;
+let boardDetails: Phaser.GameObjects.Container;
+let creatures: CreatureSprites;
 const board = document.querySelector<HTMLElement>("#game")!;
 const scene = new (class extends Phaser.Scene {
+  preload(): void {
+    for (const { asset } of Object.values(creatureArt))
+      this.load.atlas(asset, `/creatures/${asset}.png`, `/creatures/${asset}.json`);
+  }
+
   create(): void {
+    tiles = this.add.container(0, 0);
+    boardDetails = this.add.container(0, 0).setDepth(2);
+    creatures = new CreatureSprites(this);
     const resize = () => {
       const nextResolution = Math.max(
         1,
@@ -57,13 +72,20 @@ function describe(event: EngineEvent): string | null {
   }
 }
 
+function present(): void {
+  void playback.update().catch((error: unknown) => {
+    console.error(error);
+    prompt.textContent = "Animation failed. You can continue or restart.";
+  });
+}
+
 function act(command: Command): void {
   battle.command(command);
-  render();
+  present();
 }
 
 function clickCell(cell: Cell): void {
-  if (battle.state.priorityPlayer !== "north") return;
+  if (playback.busy || battle.state.priorityPlayer !== "north") return;
   const occupant = battle.state.cards.find(
     (card) => card.location.zone === "battlefield" && card.location.cell === cell,
   );
@@ -86,21 +108,22 @@ function clickCell(cell: Cell): void {
 }
 
 function cardText(card: CardInstance): string {
-  const definition = battle.state.definitions.find(
+  const definition = playback.state.definitions.find(
     (candidate) => candidate.id === card.definition,
   )!;
   return `${definition.name}\n${definition.lifeAllowance - card.wounds} life\n${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers} move`}`;
 }
 
 function render(): void {
-  const state = battle.state;
+  const state = playback.state;
   const defenders = battle.defenders;
   const bot = state.priorityPlayer === "south";
-  const commands = selected && !bot ? legalCommands(state, selected) : [];
-  scene.children.removeAll(true);
-  cells.forEach((cell, index) => {
-    const x = (index % 5) * 72 + 36;
-    const y = (5 - Math.floor(index / 5)) * 72 + 36;
+  const commands = selected && !bot && !playback.busy ? legalCommands(state, selected) : [];
+  boardDetails.removeAll(true);
+  tiles.removeAll(true);
+  if (!playback.busy) creatures.sync(state);
+  cells.forEach((cell) => {
+    const { x, y } = cellPosition(cell);
     const card = state.cards.find(
       (candidate) => candidate.location.zone === "battlefield" && candidate.location.cell === cell,
     );
@@ -108,7 +131,7 @@ function render(): void {
     const attack = commands.some(
       (command) => command.type === "strike" && command.target === card?.id,
     );
-    const defend = !bot && card && defenders.includes(card.id);
+    const defend = !playback.busy && !bot && card && defenders.includes(card.id);
     const color = card ? (card.controller === "north" ? 0x234867 : 0x693b2f) : 0x202a32;
     const border = defend
       ? 0xffd166
@@ -119,58 +142,69 @@ function render(): void {
           : card?.id === selected
             ? 0xffffff
             : 0x53616b;
-    scene.add
+    const tile = scene.add
       .rectangle(x, y, 68, 68, color)
       .setStrokeStyle(move || attack || defend || card?.id === selected ? 3 : 1, border)
       .setInteractive({ useHandCursor: true })
       .on("pointerup", () => clickCell(cell));
-    scene.add.text(x - 30, y - 30, cell, {
-      fontSize: "10px",
-      fontFamily: "sans-serif",
-      color: "#b7c5ce",
-      resolution,
-    });
-    if (card)
-      scene.add
-        .text(x, y + 4, cardText(card), {
-          fontSize: "13px",
-          fontFamily: "sans-serif",
-          resolution,
-          color: "#ffffff",
-          align: "center",
-          lineSpacing: 3,
-        })
-        .setOrigin(0.5)
-        .setAlpha(card.status === "closed" ? 0.65 : 1);
+    tiles.add(tile);
+    boardDetails.add(
+      scene.add.text(x - 30, y - 30, cell, {
+        fontSize: "10px",
+        fontFamily: "sans-serif",
+        color: "#b7c5ce",
+        resolution,
+      }),
+    );
+    if (card) {
+      const definition = state.definitions.find((candidate) => candidate.id === card.definition)!;
+      const badge = `${definition.lifeAllowance - card.wounds}HP ${card.status === "closed" ? "CLOSED" : `${definition.movementAllowance - card.movementMarkers}MP`}`;
+      boardDetails.add(
+        scene.add
+          .text(x, y + 26, badge, {
+            fontSize: "10px",
+            fontFamily: "sans-serif",
+            resolution,
+            color: "#ffffff",
+            backgroundColor: "#18212b",
+          })
+          .setOrigin(0.5),
+      );
+    }
   });
 
-  status.textContent = state.outcome
-    ? state.outcome.kind === "win"
-      ? `${state.outcome.winner} wins`
-      : "Draw"
-    : bot
-      ? "South is thinking…"
-      : defenders.length
-        ? `${state.priorityPlayer}: choose a defender`
-        : `${state.activePlayer}'s turn`;
+  status.textContent = playback.busy
+    ? "Resolving attack…"
+    : state.outcome
+      ? state.outcome.kind === "win"
+        ? `${state.outcome.winner} wins`
+        : "Draw"
+      : bot
+        ? "South is thinking…"
+        : defenders.length
+          ? `${state.priorityPlayer}: choose a defender`
+          : `${state.activePlayer}'s turn`;
   prompt.textContent =
     battle.error ??
-    (state.outcome
-      ? "Battle finished. Restart to play again."
-      : bot
-        ? "You control north. South plays automatically."
-        : defenders.length
-          ? "Tap a gold creature to defend, or take the attack."
-          : "North: tap a creature, then green to move or red to attack.");
+    (playback.busy
+      ? "Watch the attack resolve. Restart is available."
+      : state.outcome
+        ? "Battle finished. Restart to play again."
+        : bot
+          ? "You control north. South plays automatically."
+          : defenders.length
+            ? "Tap a gold creature to defend, or take the attack."
+            : "North: tap a creature, then green to move or red to attack.");
   const card = state.cards.find((candidate) => candidate.id === selected);
   inspection.textContent = card
     ? `${name(card.id)} · ${cardText(card).split("\n").slice(1).join(" · ")} · strike ${state.definitions.find((definition) => definition.id === card.definition)!.simpleStrike.join("/")}${card.location.zone === "graveyard" ? " · dead" : ""}`
     : "Tap any creature to inspect it.";
-  endTurn.disabled = Boolean(bot || state.outcome || state.stack.length);
-  takeAttack.hidden = bot || !defenders.length;
+  endTurn.disabled = Boolean(playback.busy || bot || state.outcome || state.stack.length);
+  takeAttack.hidden = playback.busy || bot || !defenders.length;
 
   log.textContent =
     battle.events
+      .slice(0, playback.eventCount)
       .map(describe)
       .filter((line) => line !== null)
       .slice(-4)
@@ -180,21 +214,22 @@ function render(): void {
 }
 
 endTurn.onclick = () => {
-  if (battle.state.priorityPlayer !== "north") return;
+  if (playback.busy || battle.state.priorityPlayer !== "north") return;
   battle.decide({ type: "end-turn" });
   selected = null;
-  render();
+  present();
 };
 takeAttack.onclick = () => {
-  if (battle.state.priorityPlayer !== "north") return;
+  if (playback.busy || battle.state.priorityPlayer !== "north") return;
   battle.decide({ type: "take-attack" });
-  render();
+  present();
 };
 document.querySelector<HTMLButtonElement>("#restart")!.onclick = () => {
   opponent.cancel();
   battle.restart();
   selected = null;
-  render();
+  creatures.clear();
+  playback.reset();
 };
 
 new Phaser.Game({

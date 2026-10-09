@@ -16,6 +16,13 @@ and ends its turn when no useful action remains. It chooses the first legal
 defender. Actions are paced; your defender choices pause the opponent.
 The chooser is deterministic, but combat dice remain random.
 
+Creatures use Duelyst placeholder sprites. Resolved strikes play attack, hit,
+then death before survivors resume idle. Defender choices precede playback;
+controls and the opponent wait while it runs. Restart cancels playback. Cell badges show HP (remaining
+life), MP (remaining movement), or CLOSED; tapping still shows full inspection.
+Art lives outside rule definitions and can be swapped through `src/creature-art.ts`.
+See [asset sources and rebuilding](assets/duelyst/README.md).
+
 Phaser renders the battlefield and handles cell targeting. Native HTML controls
 provide inspection, turn controls and the log beside the canvas, or below it on
 phones. Mobile gameplay must fit one viewport in portrait and landscape, with
