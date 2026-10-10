@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import assert from "node:assert/strict";
-import { abilityPosition } from "./battle-session";
-import { BattleHarness } from "./battle-harness";
+import { abilityPosition } from "../battle/positions";
+import { BattleHarness } from "../battle/battle-harness";
 import { applyCommand, createBattle } from "./engine";
 import type { Command, CardInstance, MatchState, Cell, MoveCommand, Rejection } from "./model";
 

@@ -1,7 +1,7 @@
 import { expect, mock, test } from "bun:test";
 import type Phaser from "phaser";
 import { cellPosition } from "./board-layout";
-import { abilityPosition, skirmishPosition } from "./battle-session";
+import { abilityPosition, skirmishPosition } from "../battle/positions";
 await mock.module("phaser", () => ({ default: { Textures: { FilterMode: { NEAREST: 0 } } } }));
 const { CombatFeedback } = await import("./combat-feedback");
 

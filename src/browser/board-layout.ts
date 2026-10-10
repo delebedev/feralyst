@@ -1,5 +1,5 @@
-import { cells } from "./battle-session";
-import type { CardInstance, Cell } from "./model";
+import { coordinates } from "../rules/board";
+import type { CardInstance, Cell } from "../rules/model";
 
 export const boardLayout = {
   width: 360,
@@ -20,10 +20,10 @@ export function resizeBoard(width: number, height: number, bottomInset = 0): voi
 }
 
 export function cellPosition(cell: Cell): { x: number; y: number } {
-  const index = cells.indexOf(cell);
+  const { column, row } = coordinates(cell);
   return {
-    x: (index % 5) * boardLayout.cellWidth + 44,
-    y: boardLayout.groundTop + (5 - Math.floor(index / 5) + 0.5) * boardLayout.cellHeight,
+    x: column * boardLayout.cellWidth + 44,
+    y: boardLayout.groundTop + (5 - row + 0.5) * boardLayout.cellHeight,
   };
 }
 

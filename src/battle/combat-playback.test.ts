@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
-import { abilityPosition, BattleSession, skirmishPosition } from "./battle-session";
+import { abilityPosition, skirmishPosition } from "./positions";
+import { BattleSession } from "./battle-session";
 import { combatSteps, CombatPlayback, type CombatStep } from "./combat-playback";
-import { createBattle } from "./engine";
+import { createBattle } from "../rules/engine";
 
 function strike(battle: BattleSession): void {
   battle.command({

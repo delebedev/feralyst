@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { abilityPosition, BattleSession } from "./battle-session";
+import { abilityPosition } from "../battle/positions";
+import { BattleSession } from "../battle/battle-session";
 import { applyCommand, createBattle } from "./engine";
 import type { MatchState } from "./model";
 

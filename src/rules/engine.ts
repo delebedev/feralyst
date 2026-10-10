@@ -1,3 +1,4 @@
+import { adjacent, distance, isCell } from "./board";
 import { strikeDamage } from "./combat";
 import type {
   Action,
@@ -17,7 +18,6 @@ import type {
   StrikeAction,
 } from "./model";
 
-const rows = ["3", "2", "1", "1′", "2′", "3′"];
 const fullChain: readonly Stage[] = [
   "ending",
   "payment",
@@ -31,20 +31,6 @@ const fullChain: readonly Stage[] = [
 ];
 const shortChain = fullChain.filter((stage) => !["roll", "result", "calculation"].includes(stage));
 
-function coordinates(cell: string) {
-  return { column: "ABCDE".indexOf(cell[0] ?? "?"), row: rows.indexOf(cell.slice(1)) };
-}
-function isCell(cell: string): cell is Cell {
-  const { column, row } = coordinates(cell);
-  return column >= 0 && row >= 0;
-}
-function adjacent(a: Cell, b: Cell, orthogonal = false): boolean {
-  const first = coordinates(a),
-    second = coordinates(b);
-  const x = Math.abs(first.column - second.column),
-    y = Math.abs(first.row - second.row);
-  return orthogonal ? x + y === 1 : Math.max(x, y) === 1;
-}
 function getCard(state: MatchState, id: CardId): CardInstance {
   const card = state.cards.find((candidate) => candidate.id === id);
   if (!card) throw new Error(`Missing card: ${id}`);
@@ -127,9 +113,7 @@ function canShoot(state: MatchState, source: CardInstance, target: CardInstance)
   if (source.location.zone === "additional" || target.location.zone === "additional") return true;
   if (source.location.zone !== "battlefield" || target.location.zone !== "battlefield")
     return false;
-  const from = coordinates(source.location.cell),
-    to = coordinates(target.location.cell);
-  return Math.max(Math.abs(from.column - to.column), Math.abs(from.row - to.row)) <= shot.range;
+  return distance(source.location.cell, target.location.cell, true) <= shot.range;
 }
 function canHeal(state: MatchState, source: CardInstance, target: CardInstance): boolean {
   return (

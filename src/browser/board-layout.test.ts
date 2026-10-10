@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { abilityPosition, cells } from "./battle-session";
+import { abilityPosition } from "../battle/positions";
+import { cells } from "../rules/board";
 import { boardLayout, cardPosition, cellPosition, resizeBoard } from "./board-layout";
 
 afterEach(() => resizeBoard(360, 700));

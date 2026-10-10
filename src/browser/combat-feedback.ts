@@ -1,7 +1,7 @@
 import type Phaser from "phaser";
-import type { CombatStep } from "./combat-playback";
+import type { CombatStep } from "../battle/combat-playback";
 import { cardPosition } from "./board-layout";
-import type { MatchState } from "./model";
+import type { MatchState } from "../rules/model";
 
 export class CombatFeedback {
   private objects: (

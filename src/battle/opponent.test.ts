@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { abilityPosition, BattleSession, skirmishPosition } from "./battle-session";
-import { createBattle } from "./engine";
+import { abilityPosition, skirmishPosition } from "./positions";
+import { BattleSession } from "./battle-session";
+import { createBattle } from "../rules/engine";
 import { chooseAction, OpponentTurn } from "./opponent";
-import type { Cell } from "./model";
+import type { Cell } from "../rules/model";
 
 function separated(): BattleSession {
   return new BattleSession(

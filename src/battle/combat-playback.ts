@@ -1,5 +1,5 @@
 import type { BattleSession } from "./battle-session";
-import type { Cell, EngineEvent, MatchState } from "./model";
+import type { Cell, EngineEvent, MatchState } from "../rules/model";
 
 export type CombatStep = Readonly<{
   animation: "attack" | "result" | "hit" | "death" | "heal" | "shot" | "move";

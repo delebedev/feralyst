@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
-import { abilityPosition, BattleSession, legalCommands } from "./battle-session";
+import { abilityPosition } from "../battle/positions";
+import { BattleSession, legalCommands } from "../battle/battle-session";
 import { applyCommand, createBattle } from "./engine";
-import { chooseAction } from "./opponent";
+import { chooseAction } from "../battle/opponent";
 import type { MatchState } from "./model";
 
 const card = (state: MatchState, id: string) => state.cards.find((card) => card.id === id)!;

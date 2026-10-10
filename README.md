@@ -59,7 +59,7 @@ third row, independent of viewport height, and clear of the right-side controls.
 Figures overlap and draw in row order;
 cell hit areas remain separate. Coordinates appear in inspection only.
 These are synthetic Feralyst cards; the ordinary headless fixtures remain unchanged.
-Art lives outside rule definitions and can be swapped through `src/creature-art.ts`.
+Art lives outside rule definitions and can be swapped through `src/browser/creature-art.ts`.
 See [asset sources and rebuilding](assets/duelyst/README.md).
 
 The top-right cog exposes Restart. Each new battle randomly chooses Sand,
@@ -100,12 +100,18 @@ supports formatting on save and lint diagnostics.
 resolution events, followed by the outcome. The synthetic creatures move,
 attack, assign a defender, take wounds and die across several turns.
 
-`createBattle` in `src/engine.ts` starts from deployed creatures. `applyCommand`
+`createBattle` in `src/rules/engine.ts` starts from deployed creatures. `applyCommand`
 accepts movement, simple strikes, defender assignment and passing, returning
 the next state and events or a rejection. Combat requires an explicit dice
-source. `src/battle-harness.ts` supplies scripted dice, checks state invariants
+source. `src/battle/battle-harness.ts` supplies scripted dice, checks state invariants
 and records a replayable trace. `bun run test` runs the rule examples and
 complete battle scenarios; `bun run typecheck` checks TypeScript separately.
+
+Source groups follow their dependencies: `src/rules/` owns rules and cell coordinates,
+`src/battle/` owns sessions, opponents, playback and starting positions, and
+`src/browser/` owns rendering and native controls. `src/main.ts` wires them together.
+Tests live beside the modules they exercise. Starting positions are shared values;
+the executable demo is separate from browser startup.
 
 This slice covers ordinary ground creatures, flying creatures, and browser Armor, Healing and Shot abilities. Recruitment,
 other card-specific abilities and symbiotes are outside its scope.

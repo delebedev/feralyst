@@ -1,8 +1,8 @@
 import Phaser from "phaser";
 import { boardLayout, cardPosition, cellPosition } from "./board-layout";
-import type { CombatStep } from "./combat-playback";
+import type { CombatStep } from "../battle/combat-playback";
 import { creatureArt } from "./creature-art";
-import type { MatchState } from "./model";
+import type { MatchState } from "../rules/model";
 
 export class CreatureSprites {
   private readonly sprites = new Map<string, Phaser.GameObjects.Sprite>();

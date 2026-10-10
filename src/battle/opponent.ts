@@ -1,13 +1,6 @@
-import { cells, type BattleDecision, type BattleSession } from "./battle-session";
-import type { MatchState, PlayerId } from "./model";
-
-function distance(a: string, b: string): number {
-  const first = cells.findIndex((cell) => cell === a);
-  const second = cells.findIndex((cell) => cell === b);
-  return (
-    Math.abs((first % 5) - (second % 5)) + Math.abs(Math.floor(first / 5) - Math.floor(second / 5))
-  );
-}
+import { distance } from "../rules/board";
+import { type BattleDecision, type BattleSession } from "./battle-session";
+import type { MatchState, PlayerId } from "../rules/model";
 
 export function chooseAction(
   state: MatchState,

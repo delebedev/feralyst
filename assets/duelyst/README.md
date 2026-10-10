@@ -20,7 +20,7 @@ sequences and reproducibility. Generated atlas JSON is kept compact and excluded
 from formatting, along with the unchanged source JSON.
 
 To swap art, supply a PNG and Phaser JSON atlas under `public/creatures/`, then
-edit `src/creature-art.ts`. Frames use `<asset>_<state>_<number>.png` for
+edit `src/browser/creature-art.ts`. Frames use `<asset>_<state>_<number>.png` for
 `idle`, `run`, `attack`, `hit` and `death`. Idle loops at eight frames per second;
 run loops at twelve during movement, attack plays once at twelve, hit and death at sixteen. `size` is the displayed square canvas size in logical
 board pixels; `origin` aligns the feet within that canvas. Retain source frames and their license for replacement assets.
