@@ -74,8 +74,8 @@ buttons on the right open contextual actions at the bottom and end the turn
 directly above. Painted ground fills the frame behind the status and settings. During
 defence, Take the attack replaces End turn. Tap the selected creature name for
 inspection; History in the action fan shows the latest four combat events.
-Portrait gameplay fits one viewport without page or panel scrolling. Portrait
-is the current preview and verification target. The existing
+Portrait gameplay fits one viewport without page or panel scrolling. Landscape
+is unsupported and outside the current product scope. The existing
 rules engine validates commands; the browser adapter passes through stages
 without decisions and pauses at legal defender reactions.
 
@@ -121,6 +121,8 @@ when its required “exchange” is possible.
 - [English rulebook](docs/rules/rulebook.md)
 - [Initial design history](docs/seed/berserk-engine-exploration-2026-10-08/README.md)
 - [Working agreement](AGENTS.md)
+- [Development playbook](docs/development.md)
+- [Current handoff](docs/handoff.md)
 
 Work is tracked with [Beads](https://github.com/steveyegge/beads).
 After cloning, run `bd bootstrap` to restore issue history. Use `bd dolt pull`
