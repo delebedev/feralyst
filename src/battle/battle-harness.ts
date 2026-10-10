@@ -1,5 +1,5 @@
-import { applyCommand } from "./engine";
-import type { Command, EngineEvent, MatchState, PlayerId } from "./model";
+import { applyCommand } from "../rules/engine";
+import type { Command, EngineEvent, MatchState, PlayerId } from "../rules/model";
 
 type TraceEntry = Readonly<{
   command: Command;

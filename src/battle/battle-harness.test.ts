@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import assert from "node:assert/strict";
 import { BattleHarness } from "./battle-harness";
-import { demoPosition, playDemo } from "./battle-demo";
-import { applyCommand, createBattle } from "./engine";
-import type { CardInstance, MatchState } from "./model";
+import { demoPosition } from "./positions";
+import { playDemo } from "./battle-demo";
+import { applyCommand, createBattle } from "../rules/engine";
+import type { CardInstance, MatchState } from "../rules/model";
 
 function duel(sourceLife = 10, targetLife = 10): MatchState {
   return createBattle({

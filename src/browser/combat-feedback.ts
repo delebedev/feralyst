@@ -1,10 +1,14 @@
 import type Phaser from "phaser";
-import type { CombatStep } from "./combat-playback";
-import { cellPosition } from "./creature-sprites";
-import type { MatchState } from "./model";
+import type { CombatStep } from "../battle/combat-playback";
+import { cardPosition } from "./board-layout";
+import type { MatchState } from "../rules/model";
 
 export class CombatFeedback {
-  private objects: (Phaser.GameObjects.Text | Phaser.GameObjects.Rectangle)[] = [];
+  private objects: (
+    | Phaser.GameObjects.Text
+    | Phaser.GameObjects.Rectangle
+    | Phaser.GameObjects.Ellipse
+  )[] = [];
   private timer: Phaser.Time.TimerEvent | null = null;
   private settle: (() => void) | null = null;
 
@@ -15,12 +19,33 @@ export class CombatFeedback {
 
   play(step: CombatStep, state: MatchState, resolution: number): Promise<void> {
     this.clear();
+    if (step.animation === "shot") {
+      for (const actor of step.actors) {
+        const source = state.cards.find((card) => card.id === actor.card);
+        const target = state.cards.find((card) => card.id === actor.target);
+        const from = source && cardPosition(source),
+          to = target && cardPosition(target);
+        if (!from || !to) continue;
+        const bolt = this.scene.add
+          .rectangle(from.x, from.y, 18, 3, 0xffd166)
+          .setRotation(Math.atan2(to.y - from.y, to.x - from.x))
+          .setDepth(4);
+        this.objects.push(bolt);
+        if (this.reducedMotion()) bolt.setPosition(to.x, to.y);
+        else this.scene.tweens.add({ targets: bolt, x: to.x, y: to.y, duration: 180 });
+      }
+      return new Promise((resolve) => {
+        this.settle = resolve;
+        this.timer = this.scene.time.delayedCall(180, () => this.clear());
+      });
+    }
     if (step.animation !== "result" && step.animation !== "hit" && step.animation !== "heal")
       return Promise.resolve();
     for (const actor of step.actors) {
       const card = state.cards.find((card) => card.id === actor.card);
-      if (card?.location.zone !== "battlefield") continue;
-      const { x, y } = cellPosition(card.location.cell);
+      const position = card && cardPosition(card);
+      if (!position) continue;
+      const { x, y } = position;
       const result = step.animation === "result";
       const label = this.scene.add
         .text(
@@ -75,12 +100,13 @@ export class CombatFeedback {
   yourTurn(state: MatchState): void {
     this.clear();
     for (const card of state.cards) {
-      if (card.controller !== "north" || card.location.zone !== "battlefield") continue;
-      const { x, y } = cellPosition(card.location.cell);
+      const position = cardPosition(card);
+      if (card.controller !== "north" || !position) continue;
+      const { x, y } = position;
       const outline = this.scene.add
-        .rectangle(x, y, 64, 64)
+        .ellipse(x, y + 6, 44, 18)
         .setStrokeStyle(3, 0x95d5b2)
-        .setDepth(3);
+        .setDepth(0.5);
       this.objects.push(outline);
       this.scene.tweens.add({ targets: outline, alpha: 0, duration: 400, ease: "Expo.easeOut" });
     }

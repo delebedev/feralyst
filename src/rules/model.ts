@@ -17,7 +17,12 @@ export type CardDefinition = Readonly<{
   movementAllowance: number;
   lifeAllowance: number;
   simpleStrike: StrikeProfile;
-  abilities?: Readonly<{ armor?: number; heal?: number }>;
+  flight?: true;
+  abilities?: Readonly<{
+    armor?: number;
+    heal?: number;
+    shot?: Readonly<{ strength: StrikeProfile; range: number }>;
+  }>;
 }>;
 
 export type CardInstance = Readonly<{
@@ -30,6 +35,7 @@ export type CardInstance = Readonly<{
   movementMarkers: number;
   wounds: number;
   armorSpent?: number;
+  flightStrike?: "pending" | "ready";
 }>;
 
 type ActionBase = Readonly<{
@@ -41,8 +47,8 @@ type ActionBase = Readonly<{
 
 export type MovementAction = ActionBase & Readonly<{ kind: "movement"; target: Cell }>;
 export type StrikeAction = ActionBase &
+  (Readonly<{ kind: "strike" }> | Readonly<{ kind: "shot" }>) &
   Readonly<{
-    kind: "strike";
     initialTarget: CardId;
     target: CardId;
     closeOnPayment: readonly CardId[];
@@ -52,11 +58,13 @@ export type StrikeAction = ActionBase &
 export type HealAction = ActionBase & Readonly<{ kind: "heal"; target: CardId; amount: number }>;
 export type DefenderAction = ActionBase & Readonly<{ kind: "defender"; attack: ActionId }>;
 export type DestructionAction = ActionBase & Readonly<{ kind: "destruction" }>;
+export type PrepareFlightAction = ActionBase & Readonly<{ kind: "prepare-flight" }>;
 export type Action =
   | MovementAction
   | StrikeAction
   | HealAction
   | DefenderAction
+  | PrepareFlightAction
   | DestructionAction;
 export type Stage =
   | "declaration"
@@ -87,12 +95,12 @@ export type MatchState = Readonly<{
 }>;
 
 export type MoveCommand = Readonly<{ type: "move"; player: PlayerId; card: CardId; to: string }>;
-export type StrikeCommand = Readonly<{
-  type: "strike";
-  player: PlayerId;
-  card: CardId;
-  target: CardId;
-}>;
+export type StrikeCommand = (Readonly<{ type: "strike" }> | Readonly<{ type: "shot" }>) &
+  Readonly<{
+    player: PlayerId;
+    card: CardId;
+    target: CardId;
+  }>;
 export type HealCommand = Readonly<{
   type: "heal";
   player: PlayerId;
@@ -101,7 +109,13 @@ export type HealCommand = Readonly<{
 }>;
 export type DefenderCommand = Readonly<{ type: "defend"; player: PlayerId; card: CardId }>;
 export type PassCommand = Readonly<{ type: "pass"; player: PlayerId }>;
-export type Command = MoveCommand | StrikeCommand | HealCommand | DefenderCommand | PassCommand;
+export type Command =
+  | MoveCommand
+  | StrikeCommand
+  | HealCommand
+  | DefenderCommand
+  | PassCommand
+  | Readonly<{ type: "prepare-flight"; player: PlayerId; card: CardId }>;
 export type Rejection =
   | "battle-ended"
   | "unknown-player"
@@ -126,7 +140,12 @@ export type Rejection =
   | "defender-not-adjacent"
   | "preliminary-phase-unsupported"
   | "no-heal-ability"
-  | "invalid-heal-target";
+  | "invalid-heal-target"
+  | "no-shot-ability"
+  | "invalid-shot-target"
+  | "flying-no-movement"
+  | "cannot-strike-flyer"
+  | "cannot-prepare-flight";
 
 export type EngineEvent =
   | Readonly<{ type: "declared"; action: Action }>
@@ -141,6 +160,7 @@ export type EngineEvent =
   | Readonly<{ type: "wounded"; card: CardId; source: CardId; amount: number }>
   | Readonly<{ type: "destroyed"; card: CardId; owner: PlayerId }>
   | Readonly<{ type: "closed" | "refreshed"; card: CardId }>
+  | Readonly<{ type: "prepared-flight"; card: CardId }>
   | Readonly<{ type: "phase-started"; phase: Phase; player: PlayerId }>
   | Readonly<{ type: "cancelled"; action: ActionId }>
   | Readonly<{ type: "ended"; outcome: Outcome }>;

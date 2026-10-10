@@ -1,43 +1,7 @@
-import { demoPosition } from "./battle-demo";
-import { applyCommand, createBattle } from "./engine";
-import type { Cell, Command, DiceSource, EngineEvent, MatchState } from "./model";
-
-export const cells: readonly Cell[] = ["3", "2", "1", "1′", "2′", "3′"].flatMap((row) =>
-  ["A", "B", "C", "D", "E"].map((column) => `${column}${row}` as Cell),
-);
-
-export const skirmishPosition = createBattle({
-  players: ["north", "south"],
-  activePlayer: "north",
-  definitions: demoPosition.definitions,
-  cards: (["north", "south"] as const).flatMap((player) =>
-    ["fighter", "guard", "ward"].map((definition, index) => ({
-      id: `${player}-${definition}`,
-      definition,
-      owner: player,
-      controller: player,
-      location: {
-        zone: "battlefield" as const,
-        cell: `${"BCD"[index]}${player === "north" ? "1" : "1′"}` as Cell,
-      },
-      status: "open" as const,
-      movementMarkers: 0,
-      wounds: 0,
-    })),
-  ),
-});
-
-// Browser abilities are separate from the ordinary rules fixtures.
-export const abilityPosition = createBattle({
-  ...skirmishPosition,
-  definitions: skirmishPosition.definitions.map((definition) =>
-    definition.id === "guard"
-      ? { ...definition, abilities: { armor: 1 } }
-      : definition.id === "ward"
-        ? { ...definition, abilities: { heal: 2 } }
-        : definition,
-  ),
-});
+import { skirmishPosition } from "./positions";
+import { cells } from "../rules/board";
+import { applyCommand } from "../rules/engine";
+import type { Command, DiceSource, EngineEvent, MatchState } from "../rules/model";
 
 // Declaration commands do not roll dice; the engine also decides the UI's legal targets.
 export function legalCommands(state: MatchState, card: string): Command[] {
@@ -45,7 +9,9 @@ export function legalCommands(state: MatchState, card: string): Command[] {
   const player = state.priorityPlayer;
   const candidates: Command[] = [
     ...state.cards.map((target): Command => ({ type: "heal", player, card, target: target.id })),
+    ...state.cards.map((target): Command => ({ type: "shot", player, card, target: target.id })),
     { type: "defend", player, card },
+    { type: "prepare-flight", player, card },
     ...cells.map((to): Command => ({ type: "move", player, card, to })),
     ...state.cards
       .filter((target) => target.controller !== player)

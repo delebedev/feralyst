@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { BattleSession, legalCommands, skirmishPosition } from "./battle-session";
-import { demoPosition } from "./battle-demo";
+import { skirmishPosition } from "./positions";
+import { BattleSession, legalCommands } from "./battle-session";
+import { demoPosition } from "./positions";
 
 function attack(): BattleSession {
   const battle = new BattleSession(skirmishPosition, () => 4);

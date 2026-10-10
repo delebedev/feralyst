@@ -1,3 +1,4 @@
+import { adjacent, distance, isCell } from "./board";
 import { strikeDamage } from "./combat";
 import type {
   Action,
@@ -17,7 +18,6 @@ import type {
   StrikeAction,
 } from "./model";
 
-const rows = ["3", "2", "1", "1′", "2′", "3′"];
 const fullChain: readonly Stage[] = [
   "ending",
   "payment",
@@ -31,20 +31,6 @@ const fullChain: readonly Stage[] = [
 ];
 const shortChain = fullChain.filter((stage) => !["roll", "result", "calculation"].includes(stage));
 
-function coordinates(cell: string) {
-  return { column: "ABCDE".indexOf(cell[0] ?? "?"), row: rows.indexOf(cell.slice(1)) };
-}
-function isCell(cell: string): cell is Cell {
-  const { column, row } = coordinates(cell);
-  return column >= 0 && row >= 0;
-}
-function adjacent(a: Cell, b: Cell, orthogonal = false): boolean {
-  const first = coordinates(a),
-    second = coordinates(b);
-  const x = Math.abs(first.column - second.column),
-    y = Math.abs(first.row - second.row);
-  return orthogonal ? x + y === 1 : Math.max(x, y) === 1;
-}
 function getCard(state: MatchState, id: CardId): CardInstance {
   const card = state.cards.find((candidate) => candidate.id === id);
   if (!card) throw new Error(`Missing card: ${id}`);
@@ -70,6 +56,64 @@ function inSquad(card: CardInstance): boolean {
 }
 function currentLife(state: MatchState, card: CardInstance): number {
   return getDefinition(state, card).lifeAllowance - card.wounds;
+}
+function flying(state: MatchState, card: CardInstance): boolean {
+  return getDefinition(state, card).flight === true;
+}
+function onlyEnemyFlyers(state: MatchState, source: CardInstance): boolean {
+  const enemies = state.cards.filter(
+    (card) => card.controller !== source.controller && inSquad(card),
+  );
+  return enemies.length > 0 && enemies.every((card) => flying(state, card));
+}
+function canPrepareFlight(state: MatchState, source: CardInstance): boolean {
+  return (
+    source.location.zone === "battlefield" &&
+    !flying(state, source) &&
+    onlyEnemyFlyers(state, source)
+  );
+}
+function canStrike(state: MatchState, source: CardInstance, target: CardInstance): boolean {
+  if (!inSquad(source) || !inSquad(target)) return false;
+  if (flying(state, source)) return true;
+  if (source.location.zone !== "battlefield") return false;
+  if (flying(state, target))
+    return source.flightStrike === "ready" && target.controller !== source.controller;
+  return (
+    source.location.zone === "battlefield" &&
+    target.location.zone === "battlefield" &&
+    adjacent(source.location.cell, target.location.cell)
+  );
+}
+function canDefend(
+  state: MatchState,
+  defender: CardInstance,
+  source: CardInstance,
+  target: CardInstance,
+): boolean {
+  if (defender.id === target.id || !inSquad(source) || !inSquad(target)) return false;
+  if (flying(state, defender))
+    return (
+      flying(state, target) || (target.location.zone === "battlefield" && flying(state, source))
+    );
+  return (
+    defender.location.zone === "battlefield" &&
+    target.location.zone === "battlefield" &&
+    adjacent(defender.location.cell, target.location.cell) &&
+    (flying(state, source) ||
+      (source.location.zone === "battlefield" &&
+        adjacent(defender.location.cell, source.location.cell)))
+  );
+}
+function canShoot(state: MatchState, source: CardInstance, target: CardInstance): boolean {
+  const shot = getDefinition(state, source).abilities?.shot;
+  if (!shot || !inSquad(source) || !inSquad(target) || source.controller === target.controller)
+    return false;
+  // Ranged attacks may target the Additional Zone despite Range X; it has no cell distance.
+  if (source.location.zone === "additional" || target.location.zone === "additional") return true;
+  if (source.location.zone !== "battlefield" || target.location.zone !== "battlefield")
+    return false;
+  return distance(source.location.cell, target.location.cell, true) <= shot.range;
 }
 function canHeal(state: MatchState, source: CardInstance, target: CardInstance): boolean {
   return (
@@ -103,7 +147,7 @@ function base(state: MatchState, card: CardInstance) {
 }
 function declare(state: MatchState, action: Action, events: EngineEvent[]): MatchState {
   const stages =
-    action.kind === "strike"
+    action.kind === "strike" || action.kind === "shot"
       ? fullChain
       : action.kind === "defender"
         ? (["payment", "wound"] as const)
@@ -166,12 +210,23 @@ export function createBattle(
   }
   for (const definition of input.definitions) {
     const values = [definition.movementAllowance, ...definition.simpleStrike];
+    if (definition.flight && definition.movementAllowance !== 0)
+      throw new Error(`Flying creature has movement: ${definition.id}`);
     if (
-      Object.values(definition.abilities ?? {}).some(
-        (value) => !Number.isInteger(value) || value <= 0,
-      )
+      [definition.abilities?.armor, definition.abilities?.heal]
+        .filter((value) => value !== undefined)
+        .some((value) => !Number.isInteger(value) || value <= 0)
     )
       throw new Error(`Invalid creature ability: ${definition.id}`);
+    const shot = definition.abilities?.shot;
+    if (
+      shot &&
+      (!Number.isInteger(shot.range) ||
+        shot.range < 1 ||
+        shot.strength.length !== 3 ||
+        shot.strength.some((value) => !Number.isInteger(value) || value < 0))
+    )
+      throw new Error(`Invalid creature shot: ${definition.id}`);
     if (
       definition.simpleStrike.length !== 3 ||
       values.some((value) => !Number.isInteger(value) || value < 0) ||
@@ -183,6 +238,12 @@ export function createBattle(
   }
   const state: MatchState = {
     ...input,
+    cards: input.cards.map((card) =>
+      card.location.zone === "battlefield" &&
+      input.definitions.find((def) => def.id === card.definition)?.flight
+        ? { ...card, location: { zone: "additional" } }
+        : card,
+    ),
     phase: "main",
     priorityPlayer: input.activePlayer,
     stack: [],
@@ -198,6 +259,11 @@ export function createBattle(
     if (ids.has(card.id)) throw new Error(`Duplicate card: ${card.id}`);
     ids.add(card.id);
     getDefinition(state, card);
+    if (
+      card.flightStrike !== undefined &&
+      (!["pending", "ready"].includes(card.flightStrike) || flying(state, card))
+    )
+      throw new Error(`Invalid flight preparation: ${card.id}`);
     if (!state.players.includes(card.owner) || !state.players.includes(card.controller)) {
       throw new Error(`Invalid card player: ${card.id}`);
     }
@@ -250,7 +316,7 @@ export function applyCommand(
   const card = state.cards.find((candidate) => candidate.id === command.card);
   if (!card) return reject("unknown-card");
   if (card.controller !== command.player) return reject("not-controller");
-  if (card.location.zone !== "battlefield") return reject("not-on-battlefield");
+  if (!inSquad(card)) return reject("not-on-battlefield");
   if (card.status !== "open") return reject("card-closed");
 
   let action: Action;
@@ -263,20 +329,18 @@ export function applyCommand(
     if (attack.target !== attack.initialTarget) return reject("already-redirected");
     const source = getCard(state, attack.source),
       target = getCard(state, attack.target);
-    if (
-      source.location.zone !== "battlefield" ||
-      target.location.zone !== "battlefield" ||
-      !adjacent(card.location.cell, source.location.cell) ||
-      !adjacent(card.location.cell, target.location.cell)
-    ) {
-      return reject("defender-not-adjacent");
-    }
+    if (!canDefend(state, card, source, target)) return reject("defender-not-adjacent");
     action = { ...base(state, card), kind: "defender", attack: attack.id };
   } else {
     if (state.activePlayer !== command.player) return reject("not-active-player");
     if (state.phase !== "main") return reject("not-main-phase");
     if (state.stack.length) return reject("stack-not-empty");
-    if (command.type === "move") {
+    if (command.type === "prepare-flight") {
+      if (!canPrepareFlight(state, card)) return reject("cannot-prepare-flight");
+      action = { ...base(state, card), kind: "prepare-flight" };
+    } else if (command.type === "move") {
+      if (flying(state, card)) return reject("flying-no-movement");
+      if (card.location.zone !== "battlefield") return reject("not-on-battlefield");
       if (card.movementMarkers >= getDefinition(state, card).movementAllowance)
         return reject("movement-exhausted");
       if (!isCell(command.to)) return reject("invalid-cell");
@@ -292,8 +356,12 @@ export function applyCommand(
     } else {
       const target = state.cards.find((other) => other.id === command.target);
       if (!target) return reject("unknown-target");
-      if (target.location.zone !== "battlefield") return reject("target-not-on-battlefield");
-      if (!adjacent(card.location.cell, target.location.cell)) return reject("not-adjacent");
+      if (!inSquad(target)) return reject("target-not-on-battlefield");
+      if (command.type === "shot") {
+        if (!getDefinition(state, card).abilities?.shot) return reject("no-shot-ability");
+        if (!canShoot(state, card, target)) return reject("invalid-shot-target");
+      } else if (command.type === "strike" && !canStrike(state, card, target))
+        return reject(flying(state, target) ? "cannot-strike-flyer" : "not-adjacent");
       if (command.type === "heal") {
         const amount = getDefinition(state, card).abilities?.heal;
         if (!amount) return reject("no-heal-ability");
@@ -302,7 +370,7 @@ export function applyCommand(
       } else
         action = {
           ...base(state, card),
-          kind: "strike",
+          kind: command.type,
           initialTarget: target.id,
           target: target.id,
           closeOnPayment: [card.id],
@@ -318,9 +386,12 @@ export function applyCommand(
 function legal(state: MatchState, action: Action): boolean {
   const source = getCard(state, action.source);
   if (action.kind === "destruction") return inSquad(source) && currentLife(state, source) <= 0;
-  if (source.location.zone !== "battlefield" || source.status !== "open") return false;
+  if (!inSquad(source) || source.status !== "open") return false;
+  if (action.kind === "prepare-flight") return canPrepareFlight(state, source);
   if (action.kind === "movement") {
     return (
+      source.location.zone === "battlefield" &&
+      !flying(state, source) &&
       source.movementMarkers < getDefinition(state, source).movementAllowance &&
       adjacent(source.location.cell, action.target, true) &&
       !state.cards.some(
@@ -328,21 +399,16 @@ function legal(state: MatchState, action: Action): boolean {
       )
     );
   }
+  if (action.kind === "shot") return canShoot(state, source, getCard(state, action.target));
   if (action.kind === "heal") return canHeal(state, source, getCard(state, action.target));
   const target = getCard(
     state,
     action.kind === "strike" ? action.target : getStrike(state, action.attack).target,
   );
-  if (target.location.zone !== "battlefield") return false;
-  if (action.kind === "strike") return adjacent(source.location.cell, target.location.cell);
+  if (action.kind === "strike") return canStrike(state, source, target);
   const attack = getStrike(state, action.attack),
     attacker = getCard(state, attack.source);
-  return (
-    attack.target === attack.initialTarget &&
-    attacker.location.zone === "battlefield" &&
-    adjacent(source.location.cell, attacker.location.cell) &&
-    adjacent(source.location.cell, target.location.cell)
-  );
+  return attack.target === attack.initialTarget && canDefend(state, source, attacker, target);
 }
 
 function readDie(rollDie: DiceSource | undefined): Die {
@@ -373,13 +439,17 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
   }
   events.push({ type: "resolved", action: action.id, stage: object.stage });
   const source = getCard(state, action.source);
-  if (action.kind === "strike" && object.stage === "roll") {
+  if ((action.kind === "strike" || action.kind === "shot") && object.stage === "roll") {
     const target = getCard(state, action.target);
     const sourceDie = readDie(rollDie);
     events.push({ type: "rolled", action: action.id, card: source.id, value: sourceDie });
-    // Only an open opposing creature fights back (209.2–3, 205.5.b).
+    // Shots use one attack roll; only simple strikes allow the ordinary response (205.6).
     const responder =
-      target.status === "open" && target.controller !== source.controller ? readDie(rollDie) : null;
+      action.kind === "strike" &&
+      target.status === "open" &&
+      target.controller !== source.controller
+        ? readDie(rollDie)
+        : null;
     if (responder !== null)
       events.push({ type: "rolled", action: action.id, card: target.id, value: responder });
     state = replaceAction(state, {
@@ -387,19 +457,27 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
       rolls: { source: sourceDie, responder },
       effectsProduced: true,
     });
-  } else if (action.kind === "strike" && object.stage === "calculation") {
+  } else if (
+    (action.kind === "strike" || action.kind === "shot") &&
+    object.stage === "calculation"
+  ) {
     if (!action.rolls) throw new Error("Strike dice have not been rolled");
     const target = getCard(state, action.target);
     const damage = strikeDamage(
       action.rolls.source,
       action.rolls.responder,
-      getDefinition(state, source).simpleStrike,
+      action.kind === "shot"
+        ? getDefinition(state, source).abilities!.shot!.strength
+        : getDefinition(state, source).simpleStrike,
       getDefinition(state, target).simpleStrike,
     );
     state = replaceAction(state, { ...action, damage });
     events.push({ type: "calculated", action: action.id, ...damage });
   } else if (object.stage === "wound") {
-    if (action.kind === "movement") {
+    if (action.kind === "prepare-flight") {
+      state = replaceCard(state, { ...source, flightStrike: "pending" });
+      events.push({ type: "prepared-flight", card: source.id });
+    } else if (action.kind === "movement") {
       if (source.location.zone !== "battlefield")
         throw new Error("Movement source left the battlefield");
       state = replaceCard(state, {
@@ -468,12 +546,28 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
         ...attack,
         closeOnPayment: [...attack.closeOnPayment, source.id],
       });
-    } else if (action.kind === "strike" || action.kind === "heal") {
+    } else if (
+      action.kind === "strike" ||
+      action.kind === "shot" ||
+      action.kind === "heal" ||
+      action.kind === "prepare-flight"
+    ) {
       // Effects already happened: pay as far as possible even if the source died (423.1.a, 416.2).
-      for (const id of action.kind === "heal" ? [source.id] : action.closeOnPayment) {
+      for (const id of action.kind === "heal" || action.kind === "prepare-flight"
+        ? [source.id]
+        : action.closeOnPayment) {
         const card = getCard(state, id);
         if (!inSquad(card) || card.status === "closed") continue;
-        state = replaceCard(state, { ...card, status: "closed" });
+        state = replaceCard(state, {
+          ...card,
+          status: "closed",
+          ...(id === source.id &&
+          action.kind === "strike" &&
+          flying(state, getCard(state, action.initialTarget)) &&
+          !flying(state, source)
+            ? { flightStrike: undefined }
+            : {}),
+        });
         events.push({ type: "closed", card: id });
       }
     }
@@ -482,7 +576,7 @@ function resolveTop(state: MatchState, events: EngineEvent[], rollDie?: DiceSour
   return { state, priority: state.activePlayer };
 }
 
-// Ordinary creatures have no preparation choices or phase-triggered abilities.
+// Preparation lasts for one own turn after the creature closes (211.9).
 function advancePhase(state: MatchState, events: EngineEvent[]): MatchState {
   if (state.phase === "main") state = { ...state, phase: "final" };
   else if (state.phase === "initial") state = { ...state, phase: "main" };
@@ -496,8 +590,17 @@ function advancePhase(state: MatchState, events: EngineEvent[]): MatchState {
     }
     for (const card of state.cards) {
       if (card.controller !== activePlayer || !inSquad(card)) continue;
+      if (card.flightStrike)
+        state = replaceCard(state, {
+          ...getCard(state, card.id),
+          flightStrike: card.flightStrike === "pending" ? "ready" : undefined,
+        });
       if (card.status === "closed" || card.movementMarkers > 0) {
-        state = replaceCard(state, { ...card, status: "open", movementMarkers: 0 });
+        state = replaceCard(state, {
+          ...getCard(state, card.id),
+          status: "open",
+          movementMarkers: 0,
+        });
         events.push({ type: "refreshed", card: card.id });
       }
     }

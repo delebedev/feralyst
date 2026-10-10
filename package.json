@@ -9,7 +9,7 @@
     "lint": "oxlint --deny-warnings src",
     "typecheck": "tsc",
     "test": "bun test",
-    "battle": "bun src/battle-demo.ts",
+    "battle": "bun src/battle/battle-demo.ts",
     "build": "vite build",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run assets:check && bun run test && bun run build",
     "assets": "bun scripts/build-creature-atlases.ts",

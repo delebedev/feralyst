@@ -1,6 +1,7 @@
 import { expect, mock, test } from "bun:test";
 import type Phaser from "phaser";
-import { skirmishPosition } from "./battle-session";
+import { cellPosition } from "./board-layout";
+import { abilityPosition, skirmishPosition } from "../battle/positions";
 await mock.module("phaser", () => ({ default: { Textures: { FilterMode: { NEAREST: 0 } } } }));
 const { CombatFeedback } = await import("./combat-feedback");
 
@@ -15,6 +16,8 @@ function renderer(reduced = false) {
       destroyed: false,
       setOrigin: () => item,
       setDepth: () => item,
+      setRotation: () => item,
+      setPosition: () => item,
       setStrokeStyle: () => item,
       destroy: () => {
         item.destroyed = true;
@@ -27,6 +30,7 @@ function renderer(reduced = false) {
     add: {
       text: (_x: number, _y: number, text: string) => object(text),
       rectangle: () => object(""),
+      ellipse: () => object(""),
     },
     time: {
       delayedCall: (delay: number, callback: () => void) => {
@@ -80,7 +84,7 @@ test("damage and Miss fade while reduced motion removes the float", async () => 
       1,
     );
     expect(labels.map((label) => label.text)).toEqual(["−2", "Miss"]);
-    expect(tweens[0]?.y).toBe(243 - (reduced ? 0 : 12));
+    expect(tweens[0]?.y).toBe(cellPosition("B1").y - 9 - (reduced ? 0 : 12));
     expect(timers[0]?.delay).toBe(650);
     timers[0]!.callback();
     await playing;
@@ -122,4 +126,37 @@ test("healing shows positive actual restoration and armor absorption is not a mi
   expect(labels[1]?.text).toBe("Armor");
   feedback.clear();
   await armor;
+});
+
+test("shot projectile respects reduced motion and cancellation settles playback", async () => {
+  for (const reduced of [false, true]) {
+    const { feedback, labels, timers, tweens } = renderer(reduced);
+    const playing = feedback.play(
+      { animation: "shot", actors: [{ card: "north-fighter", target: "south-fighter" }] },
+      skirmishPosition,
+      1,
+    );
+    expect(labels).toHaveLength(1);
+    expect(tweens).toHaveLength(reduced ? 0 : 1);
+    expect(timers[0]?.delay).toBe(180);
+    feedback.clear();
+    await playing;
+    expect(labels[0]?.destroyed).toBe(true);
+    expect(timers[0]?.removed).toBe(true);
+  }
+});
+
+test("air-zone dice, damage and shot feedback settle on the same lifecycle as ground combat", async () => {
+  for (const step of [
+    { animation: "result", actors: [{ card: "south-gryphon", roll: 4 }] },
+    { animation: "hit", actors: [{ card: "south-gryphon", amount: 2 }] },
+    { animation: "shot", actors: [{ card: "north-archer", target: "south-gryphon" }] },
+  ] as const) {
+    const { feedback, labels, timers } = renderer();
+    const playing = feedback.play(step, abilityPosition, 1);
+    expect(labels).toHaveLength(1);
+    timers[0]!.callback();
+    await playing;
+    expect(labels[0]!.destroyed).toBe(true);
+  }
 });

@@ -1,14 +1,17 @@
 import type { BattleSession } from "./battle-session";
-import type { EngineEvent, MatchState } from "./model";
+import type { Cell, EngineEvent, MatchState } from "../rules/model";
 
 export type CombatStep = Readonly<{
-  animation: "attack" | "result" | "hit" | "death" | "heal";
+  animation: "attack" | "result" | "hit" | "death" | "heal" | "shot" | "move";
   actors: readonly Readonly<{
     card: string;
     target?: string;
     roll?: number;
     amount?: number;
     prevented?: number;
+    shot?: boolean;
+    from?: Cell;
+    to?: Cell;
   }>[];
 }>;
 
@@ -16,13 +19,22 @@ export function combatSteps(
   history: readonly EngineEvent[],
   events: readonly EngineEvent[],
 ): CombatStep[] {
+  const movement = events.filter((event) => event.type === "moved");
+  if (movement.length)
+    return movement.map((event) => ({
+      animation: "move",
+      actors: [{ card: event.card, from: event.from, to: event.to }],
+    }));
   const attacks = events
     .filter((event) => event.type === "rolled")
     .map((roll) => {
       const declaration = history.find(
         (event) => event.type === "declared" && event.action.id === roll.action,
       );
-      if (declaration?.type !== "declared" || declaration.action.kind !== "strike")
+      if (
+        declaration?.type !== "declared" ||
+        (declaration.action.kind !== "strike" && declaration.action.kind !== "shot")
+      )
         throw new Error(`Missing strike declaration: ${roll.action}`);
       const strike = declaration.action;
       const redirect = history.find(
@@ -33,6 +45,7 @@ export function combatSteps(
         card: roll.card,
         target: roll.card === strike.source ? target : strike.source,
         roll: roll.value,
+        ...(strike.kind === "shot" ? { shot: true } : {}),
       };
     });
   if (!attacks.length)
@@ -44,8 +57,16 @@ export function combatSteps(
       }));
   // shortcut: stages group one strike per decision; split by action if chained strikes are added.
   return [
-    { animation: "attack" as const, actors: attacks.map(({ card, target }) => ({ card, target })) },
+    {
+      animation: "attack" as const,
+      actors: attacks.map(({ card, target, shot }) => ({
+        card,
+        target,
+        ...(shot ? { shot } : {}),
+      })),
+    },
     { animation: "result" as const, actors: attacks },
+    { animation: "shot" as const, actors: attacks.filter((actor) => actor.shot) },
     {
       animation: "hit" as const,
       actors: attacks.map(({ target }) => ({
@@ -92,7 +113,8 @@ export class CombatPlayback {
     if (this.fighting) return this.fighting;
     for (const item of this.state.stack) {
       const action = this.state.actions[item.action];
-      if (action?.kind === "strike") return { source: action.source, target: action.target };
+      if (action?.kind === "strike" || action?.kind === "shot")
+        return { source: action.source, target: action.target };
     }
     return null;
   }

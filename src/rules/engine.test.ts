@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import assert from "node:assert/strict";
+import { abilityPosition } from "../battle/positions";
+import { BattleHarness } from "../battle/battle-harness";
 import { applyCommand, createBattle } from "./engine";
-import type { Command, CardInstance, MatchState, MoveCommand, Rejection } from "./model";
+import type { Command, CardInstance, MatchState, Cell, MoveCommand, Rejection } from "./model";
 
 function freeze<T>(value: T): T {
   if (value !== null && typeof value === "object") {
@@ -581,5 +583,164 @@ describe("battle construction", () => {
         .outcome,
     ).toEqual({ kind: "win", winner: "north" });
     expect(createBattle({ ...input, cards: [] }).outcome).toEqual({ kind: "draw" });
+  });
+});
+
+function shotPosition(target: Cell = "D1′"): MatchState {
+  const locations: Record<string, Cell> = {
+    "north-archer": "B2",
+    "south-fighter": target,
+    "north-guard": "C1",
+    "south-guard": "C2",
+  };
+  return createBattle({
+    ...abilityPosition,
+    cards: abilityPosition.cards
+      .filter((card) => locations[card.id])
+      .map((card) => ({ ...card, location: { zone: "battlefield", cell: locations[card.id]! } })),
+  });
+}
+const shotCommand = {
+  type: "shot",
+  player: "north",
+  card: "north-archer",
+  target: "south-fighter",
+} as const;
+
+describe("Shot with Range 2", () => {
+  test.each(["B3", "D2", "B1′", "D1′"] as const)(
+    "can shoot %s, including adjacent and diagonal targets through occupied cells",
+    (cell) => {
+      expect(applyCommand(shotPosition(cell), shotCommand).ok).toBe(true);
+    },
+  );
+  test("rejects distant, friendly, self, dead targets and creatures without Shot", () => {
+    expect(applyCommand(shotPosition("E1′"), shotCommand)).toMatchObject({
+      ok: false,
+      reason: "invalid-shot-target",
+    });
+    for (const target of ["north-guard", "north-archer"])
+      expect(applyCommand(shotPosition(), { ...shotCommand, target })).toMatchObject({
+        ok: false,
+        reason: "invalid-shot-target",
+      });
+    expect(applyCommand(shotPosition(), { ...shotCommand, card: "north-guard" })).toMatchObject({
+      ok: false,
+      reason: "no-shot-ability",
+    });
+    const state = shotPosition();
+    const dead = {
+      ...state,
+      cards: state.cards.map((card) =>
+        card.id === shotCommand.target
+          ? { ...card, location: { zone: "graveyard" as const } }
+          : card,
+      ),
+    };
+    expect(applyCommand(dead, shotCommand)).toMatchObject({
+      ok: false,
+      reason: "target-not-on-battlefield",
+    });
+  });
+  test.each([
+    [1, 1],
+    [3, 1],
+    [4, 2],
+    [5, 2],
+    [6, 3],
+  ])(
+    "roll %s deals %s wounds with no counterstrike, and closes only the shooter",
+    (die, wounds) => {
+      const battle = new BattleHarness(shotPosition(), [die]);
+      battle.command(shotCommand).resolveStack().assertDiceConsumed();
+      expect(battle.state.cards.find((card) => card.id === "south-fighter")).toMatchObject({
+        wounds,
+        status: "open",
+      });
+      expect(battle.state.cards.find((card) => card.id === "north-archer")).toMatchObject({
+        wounds: 0,
+        status: "closed",
+      });
+      expect(applyCommand(battle.state, shotCommand)).toMatchObject({
+        ok: false,
+        reason: "card-closed",
+      });
+      expect(
+        applyCommand(battle.state, {
+          type: "move",
+          player: "north",
+          card: "north-archer",
+          to: "A2",
+        }),
+      ).toMatchObject({ ok: false, reason: "card-closed" });
+    },
+  );
+  test("ordinary defender assignment is unavailable even beside source and target", () => {
+    const battle = new BattleHarness(shotPosition("D2"), [4]);
+    battle.command(shotCommand).pass().pass().pass();
+    expect(
+      applyCommand(battle.state, { type: "defend", player: "south", card: "south-guard" }),
+    ).toMatchObject({ ok: false, reason: "no-defender-window" });
+    battle.resolveStack().assertDiceConsumed();
+  });
+  test("Armor absorbs a weak shot and a lethal strong shot destroys after armor", () => {
+    for (const [die, wounds] of [
+      [1, 0],
+      [6, 2],
+    ]) {
+      const state = shotPosition();
+      const battle = new BattleHarness(
+        {
+          ...state,
+          cards: state.cards.map((card) =>
+            card.id === "south-guard" ? { ...card, wounds: die === 6 ? 1 : 0 } : card,
+          ),
+        },
+        [die!],
+      );
+      battle
+        .command({ ...shotCommand, target: "south-guard" })
+        .resolveStack()
+        .assertDiceConsumed();
+      const target = battle.state.cards.find((card) => card.id === "south-guard")!;
+      expect(target.armorSpent).toBe(1);
+      expect(target.wounds).toBe((die === 6 ? 1 : 0) + wounds!);
+      expect(target.location.zone).toBe(die === 6 ? "graveyard" : "battlefield");
+    }
+  });
+  test("range is rechecked before effects, canceling without payment", () => {
+    const declared = applyCommand(shotPosition(), shotCommand);
+    assert(declared.ok);
+    const moved = {
+      ...declared.state,
+      cards: declared.state.cards.map((card) =>
+        card.id === shotCommand.target
+          ? { ...card, location: { zone: "battlefield" as const, cell: "E3′" as const } }
+          : card,
+      ),
+    };
+    const battle = new BattleHarness(moved, []);
+    battle.resolveStack().assertDiceConsumed();
+    expect(battle.state.cards.find((card) => card.id === "north-archer")?.status).toBe("open");
+    expect(
+      battle.trace.flatMap((entry) => entry.events).some((event) => event.type === "cancelled"),
+    ).toBe(true);
+  });
+  test("validates shot range and strength at the definition boundary", () => {
+    for (const shot of [
+      { range: 0, strength: [1, 2, 3] },
+      { range: 1.5, strength: [1, 2, 3] },
+      { range: 2, strength: [1, -1, 3] },
+      { range: 2, strength: [1, 2] },
+    ]) {
+      expect(() =>
+        createBattle({
+          ...abilityPosition,
+          definitions: abilityPosition.definitions.map((def) =>
+            def.id === "archer" ? { ...def, abilities: { shot } } : def,
+          ),
+        } as Parameters<typeof createBattle>[0]),
+      ).toThrow("Invalid creature shot");
+    }
   });
 });
