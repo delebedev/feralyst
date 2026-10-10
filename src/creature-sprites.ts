@@ -57,12 +57,12 @@ export class CreatureSprites {
       sprite
         .setPosition(x, y + 18)
         .setFlipX(card.controller === "south")
-        .setAlpha(card.status === "closed" ? 0.45 : 1);
+        .setAlpha(card.status === "closed" ? 0.65 : 1);
     }
   }
 
   async play(step: CombatStep): Promise<void> {
-    if (step.animation === "result") return;
+    if (step.animation === "result" || step.animation === "heal") return;
     await Promise.all(
       step.actors.map((actor) => {
         const { card, target } = actor;

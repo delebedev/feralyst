@@ -15,7 +15,8 @@ export class CombatFeedback {
 
   play(step: CombatStep, state: MatchState, resolution: number): Promise<void> {
     this.clear();
-    if (step.animation !== "result" && step.animation !== "hit") return Promise.resolve();
+    if (step.animation !== "result" && step.animation !== "hit" && step.animation !== "heal")
+      return Promise.resolve();
     for (const actor of step.actors) {
       const card = state.cards.find((card) => card.id === actor.card);
       if (card?.location.zone !== "battlefield") continue;
@@ -25,12 +26,27 @@ export class CombatFeedback {
         .text(
           x + 27,
           result ? y - 22 : y - 9,
-          result ? `Roll ${actor.roll}` : actor.amount ? `−${actor.amount}` : "Miss",
+          step.animation === "heal"
+            ? `+${actor.amount}`
+            : result
+              ? `Roll ${actor.roll}`
+              : actor.amount
+                ? `−${actor.amount}${actor.prevented ? " A" : ""}`
+                : actor.prevented
+                  ? "Armor"
+                  : "Miss",
           {
             fontFamily: "sans-serif",
             fontSize: result ? "12px" : "14px",
             fontStyle: "bold",
-            color: result ? "#f5f1e8" : actor.amount ? "#ff8b75" : "#b7c5ce",
+            color:
+              step.animation === "heal"
+                ? "#95d5b2"
+                : result
+                  ? "#f5f1e8"
+                  : actor.amount
+                    ? "#ff8b75"
+                    : "#b7c5ce",
             backgroundColor: "#18212b",
             padding: { x: 4, y: 3 },
             resolution,

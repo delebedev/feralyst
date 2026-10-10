@@ -2,8 +2,14 @@ import type { BattleSession } from "./battle-session";
 import type { EngineEvent, MatchState } from "./model";
 
 export type CombatStep = Readonly<{
-  animation: "attack" | "result" | "hit" | "death";
-  actors: readonly Readonly<{ card: string; target?: string; roll?: number; amount?: number }>[];
+  animation: "attack" | "result" | "hit" | "death" | "heal";
+  actors: readonly Readonly<{
+    card: string;
+    target?: string;
+    roll?: number;
+    amount?: number;
+    prevented?: number;
+  }>[];
 }>;
 
 export function combatSteps(
@@ -29,7 +35,13 @@ export function combatSteps(
         roll: roll.value,
       };
     });
-  if (!attacks.length) return [];
+  if (!attacks.length)
+    return events
+      .filter((event) => event.type === "healed")
+      .map((event) => ({
+        animation: "heal",
+        actors: [{ card: event.card, target: event.source, amount: event.amount }],
+      }));
   // shortcut: stages group one strike per decision; split by action if chained strikes are added.
   return [
     { animation: "attack" as const, actors: attacks.map(({ card, target }) => ({ card, target })) },
@@ -38,6 +50,13 @@ export function combatSteps(
       animation: "hit" as const,
       actors: attacks.map(({ target }) => ({
         card: target,
+        ...(events.some((event) => event.type === "prevented" && event.card === target)
+          ? {
+              prevented: events
+                .filter((event) => event.type === "prevented" && event.card === target)
+                .reduce((sum, event) => sum + (event.type === "prevented" ? event.amount : 0), 0),
+            }
+          : {}),
         amount: events
           .filter((event) => event.type === "wounded" && event.card === target)
           .reduce((amount, event) => amount + (event.type === "wounded" ? event.amount : 0), 0),
@@ -85,17 +104,29 @@ export class CombatPlayback {
     const revision = this.revision;
     this.busy = steps.length > 0;
     const attacker = steps[0]?.actors[0];
-    if (attacker?.target) this.fighting = { source: attacker.card, target: attacker.target };
+    if (attacker?.target)
+      this.fighting =
+        steps[0]?.animation === "heal"
+          ? { source: attacker.target, target: attacker.card }
+          : { source: attacker.card, target: attacker.target };
     try {
       for (const step of steps) {
         this.step = step;
-        if (step.animation === "hit") {
+        if (step.animation === "hit" || step.animation === "heal") {
           this.state = {
             ...this.state,
             cards: this.state.cards.map((card) => ({
               ...card,
+              ...(step.actors.some((actor) => actor.card === card.id && actor.prevented)
+                ? {
+                    armorSpent: this.battle.state.cards.find((final) => final.id === card.id)
+                      ?.armorSpent,
+                  }
+                : {}),
               wounds:
-                card.wounds + (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
+                card.wounds +
+                (step.animation === "heal" ? -1 : 1) *
+                  (step.actors.find((actor) => actor.card === card.id)?.amount ?? 0),
             })),
           };
         }

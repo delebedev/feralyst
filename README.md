@@ -20,8 +20,16 @@ Creatures use Duelyst placeholder sprites. Resolved strikes play attack,
 dice results, hit, then death before survivors resume idle. Attacker and target
 outlines identify the exchange; damage or Miss appears beside affected creatures.
 HP updates when the hit starts. Defender choices precede playback;
-controls and the opponent wait while it runs. Restart cancels playback. Cell badges show HP (remaining
-life), MP (remaining movement), or CLOSED; tapping still shows full inspection.
+controls and the opponent wait while it runs. Restart cancels playback. Cells show numbered health
+bars and movement pips. A checkmark and dimmed sprite mean the creature has spent
+its action; tapping still shows full inspection.
+Browser Guards have Armor 1: the first wound from nonmagical attacks is prevented
+each player turn. The shield shows the remaining allowance; inspection shows the total.
+Browser Wards have “Close: heal an adjacent wounded friendly creature for 2.”
+Select Ward, choose Heal 2, then tap a green ally. Healing includes diagonal
+neighbors, restores only existing wounds and closes Ward. It cannot heal itself.
+The bot prioritizes useful healing before strikes.
+These are synthetic Feralyst cards; the ordinary headless fixtures remain unchanged.
 Art lives outside rule definitions and can be swapped through `src/creature-art.ts`.
 See [asset sources and rebuilding](assets/duelyst/README.md).
 
@@ -60,7 +68,7 @@ source. `src/battle-harness.ts` supplies scripted dice, checks state invariants
 and records a replayable trace. `bun run test` runs the rule examples and
 complete battle scenarios; `bun run typecheck` checks TypeScript separately.
 
-This slice covers ordinary ground creatures without abilities. Recruitment,
+This slice covers ordinary ground creatures, plus browser Armor and Healing abilities. Recruitment,
 card-specific abilities, flying creatures and symbiotes are outside its scope.
 The optional **Weakening** choice is also omitted: rule 216.7 does not define
 when its required “exchange” is possible.

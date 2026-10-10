@@ -27,11 +27,24 @@ export const skirmishPosition = createBattle({
   ),
 });
 
+// Browser abilities are separate from the ordinary rules fixtures.
+export const abilityPosition = createBattle({
+  ...skirmishPosition,
+  definitions: skirmishPosition.definitions.map((definition) =>
+    definition.id === "guard"
+      ? { ...definition, abilities: { armor: 1 } }
+      : definition.id === "ward"
+        ? { ...definition, abilities: { heal: 2 } }
+        : definition,
+  ),
+});
+
 // Declaration commands do not roll dice; the engine also decides the UI's legal targets.
 export function legalCommands(state: MatchState, card: string): Command[] {
   if (state.priorityPlayer === null) return [];
   const player = state.priorityPlayer;
   const candidates: Command[] = [
+    ...state.cards.map((target): Command => ({ type: "heal", player, card, target: target.id })),
     { type: "defend", player, card },
     ...cells.map((to): Command => ({ type: "move", player, card, to })),
     ...state.cards

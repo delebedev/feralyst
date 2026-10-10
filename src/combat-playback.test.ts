@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { BattleSession, skirmishPosition } from "./battle-session";
+import { abilityPosition, BattleSession, skirmishPosition } from "./battle-session";
 import { combatSteps, CombatPlayback, type CombatStep } from "./combat-playback";
 import { createBattle } from "./engine";
 
@@ -136,4 +136,37 @@ test("mutual misses still reveal dice and results without wounds or death", () =
     { card: "south-fighter", amount: 0 },
     { card: "north-fighter", amount: 0 },
   ]);
+});
+
+test("heal feedback reveals restored HP while input stays locked until completion", async () => {
+  const initial = createBattle({
+    ...abilityPosition,
+    cards: abilityPosition.cards.map((card) =>
+      card.id === "north-guard" ? { ...card, wounds: 2 } : card,
+    ),
+  });
+  const battle = new BattleSession(initial);
+  let release: (() => void) | undefined;
+  const playback = new CombatPlayback(
+    battle,
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    () => {},
+  );
+  battle.command({ type: "heal", player: "north", card: "north-ward", target: "north-guard" });
+  const playing = playback.update();
+  expect(playback.step).toEqual({
+    animation: "heal",
+    actors: [{ card: "north-guard", target: "north-ward", amount: 2 }],
+  });
+  expect(playback.busy).toBe(true);
+  expect(playback.state.cards.find((card) => card.id === "north-guard")?.wounds).toBe(0);
+  expect(playback.exchange).toEqual({ source: "north-ward", target: "north-guard" });
+  expect(playback.eventCount).toBe(0);
+  release!();
+  await playing;
+  expect(playback.state.cards.find((card) => card.id === "north-ward")?.status).toBe("closed");
+  expect(playback.busy).toBe(false);
 });
