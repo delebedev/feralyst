@@ -30,13 +30,54 @@ export const skirmishPosition = createBattle({
 // Browser abilities are separate from the ordinary rules fixtures.
 export const abilityPosition = createBattle({
   ...skirmishPosition,
-  definitions: skirmishPosition.definitions.map((definition) =>
-    definition.id === "guard"
-      ? { ...definition, abilities: { armor: 1 } }
-      : definition.id === "ward"
-        ? { ...definition, abilities: { heal: 2 } }
-        : definition,
-  ),
+  cards: [
+    ...skirmishPosition.cards,
+    ...(["north", "south"] as const).map((player) => ({
+      id: `${player}-gryphon`,
+      definition: "gryphon",
+      owner: player,
+      controller: player,
+      location: { zone: "additional" as const },
+      status: "open" as const,
+      movementMarkers: 0,
+      wounds: 0,
+    })),
+    ...(["north", "south"] as const).map((player) => ({
+      id: `${player}-archer`,
+      definition: "archer",
+      owner: player,
+      controller: player,
+      location: { zone: "battlefield" as const, cell: (player === "north" ? "E1" : "A1′") as Cell },
+      status: "open" as const,
+      movementMarkers: 0,
+      wounds: 0,
+    })),
+  ],
+  definitions: [
+    {
+      id: "gryphon",
+      name: "Gryphon",
+      flight: true,
+      movementAllowance: 0,
+      lifeAllowance: 4,
+      simpleStrike: [1, 2, 3],
+    },
+    ...skirmishPosition.definitions.map((definition) =>
+      definition.id === "guard"
+        ? { ...definition, abilities: { armor: 1 } }
+        : definition.id === "ward"
+          ? { ...definition, abilities: { heal: 2 } }
+          : definition,
+    ),
+    {
+      id: "archer",
+      name: "Archer",
+      movementAllowance: 2,
+      lifeAllowance: 3,
+      simpleStrike: [1, 1, 2],
+      abilities: { shot: { strength: [1, 2, 3], range: 2 } },
+    },
+  ],
 });
 
 // Declaration commands do not roll dice; the engine also decides the UI's legal targets.
@@ -45,7 +86,9 @@ export function legalCommands(state: MatchState, card: string): Command[] {
   const player = state.priorityPlayer;
   const candidates: Command[] = [
     ...state.cards.map((target): Command => ({ type: "heal", player, card, target: target.id })),
+    ...state.cards.map((target): Command => ({ type: "shot", player, card, target: target.id })),
     { type: "defend", player, card },
+    { type: "prepare-flight", player, card },
     ...cells.map((to): Command => ({ type: "move", player, card, to })),
     ...state.cards
       .filter((target) => target.controller !== player)

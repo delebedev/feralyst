@@ -40,8 +40,12 @@ export function chooseAction(
     );
   heals.sort((a, b) => restored(b) - restored(a) || life(a.target) - life(b.target));
   if (heals[0]) return heals[0];
-  const strikes = actions.filter((action) => action.type === "strike");
-  strikes.sort((a, b) => life(a.target) + armor(a.target) - life(b.target) - armor(b.target));
+  const strikes = actions.filter((action) => action.type === "shot" || action.type === "strike");
+  strikes.sort(
+    (a, b) =>
+      life(a.target) + armor(a.target) - life(b.target) - armor(b.target) ||
+      Number(b.type === "shot") - Number(a.type === "shot"),
+  );
   if (strikes[0]) return strikes[0];
 
   const enemies = state.cards.flatMap((target) =>
@@ -61,6 +65,7 @@ export function chooseAction(
   moves.sort((a, b) => nearest(a.to) - nearest(b.to));
   // shortcut: occupied paths can stall this greedy bot; add pathfinding when scenarios need it.
   return (
+    actions.find((action) => action.type === "prepare-flight") ??
     moves[0] ??
     actions.find((action) => action.type === "take-attack" || action.type === "end-turn") ??
     null

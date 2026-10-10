@@ -222,3 +222,18 @@ test("bot chooses a useful heal from legal decisions, then continues after Ward 
   expect(battle.state.cards.find((card) => card.id === "south-ward")?.status).toBe("closed");
   expect(chooseAction(battle.state, battle.decisions)?.type).not.toBe("heal");
 });
+
+test("Archer chooses Shot over an adjacent simple strike and closes after shooting", () => {
+  const battle = new BattleSession(
+    createBattle({ ...abilityPosition, activePlayer: "south" }),
+    () => 4,
+  );
+  const actions = battle.decisions.filter(
+    (action) => "card" in action && action.card === "south-archer",
+  );
+  const choice = chooseAction(battle.state, actions);
+  expect(choice).toMatchObject({ type: "shot", card: "south-archer" });
+  battle.decide(choice!);
+  expect(battle.state.cards.find((card) => card.id === "south-archer")?.status).toBe("closed");
+  expect(battle.defenders).toEqual([]);
+});
